@@ -7,7 +7,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -27,7 +26,7 @@ model Tenant {
   
   // Contacto
   email             String    @unique
-  phoneCountryCode  String    @default("+57") @db.VarChar(5)
+  phoneCountryCode  String    @default("+52") @db.VarChar(5) // México
   phoneNumber       String    @db.VarChar(20)
   address           String?   @db.VarChar(255)
   website           String?   @db.VarChar(255)
@@ -64,16 +63,16 @@ model Tenant {
 model Sede {
   id                Int       @id @default(autoincrement())
   tenantId          Int
-  name              String    @db.VarChar(100) // Nombre de la sede (Departamento)
+  name              String    @db.VarChar(100) // Nombre de la sede (Estado/Departamento)
   code              String    @db.VarChar(20) // Código único dentro del tenant
   
   // Contacto y ubicación
   email             String?
-  phoneCountryCode  String    
+  phoneCountryCode  String    @default("+52") @db.VarChar(5)
   phoneNumber       String?   @db.VarChar(20)
   address           String    @db.VarChar(255)
   city              String    @db.VarChar(100)
-  state             String    @db.VarChar(100)
+  state             String    @db.VarChar(100) // Estado de México
   postalCode        String?   @db.VarChar(10)
   
   // Geolocalización
@@ -91,6 +90,7 @@ model Sede {
   tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subsedes          Subsede[]
   users             User[]
+  userSedeAccess    UserSedeAccess[] // Nueva: acceso explícito de usuarios
   
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -103,11 +103,11 @@ model Subsede {
   id                Int       @id @default(autoincrement())
   sedeId            Int
   name              String    @db.VarChar(100) // Nombre del municipio
-  code              String    @db.VarChar(20) // Código DANE del municipio
+  code              String    @db.VarChar(20) // Código del municipio
   
   // Contacto y ubicación
   email             String?
-  phoneCountryCode  String    @default("+57") @db.VarChar(5)
+  phoneCountryCode  String    @default("+52") @db.VarChar(5)
   phoneNumber       String?   @db.VarChar(20)
   address           String    @db.VarChar(255)
   
@@ -117,7 +117,7 @@ model Subsede {
   
   // Información municipal
   population        Int?
-  daneCityCode      String?   @db.VarChar(10) // Código DANE completo
+  municipalityCode  String?   @db.VarChar(10) // Código INEGI
   
   // Estado y auditoría
   isActive          Boolean   @default(true)
@@ -129,12 +129,59 @@ model Subsede {
   // Relaciones
   sede              Sede      @relation(fields: [sedeId], references: [id], onDelete: Cascade)
   users             User[]
+  userSubsedeAccess UserSubsedeAccess[] // Nueva: acceso explícito de usuarios
   
   @@unique([sedeId, code])
   @@index([sedeId])
   @@index([isActive])
   @@index([deletedAt])
   @@map("subsedes")
+}
+
+// ============================================
+// CONTROL DE ACCESO A SEDES Y SUBSEDES
+// ============================================
+
+// Nueva tabla: Define a qué SEDES tiene acceso un usuario
+model UserSedeAccess {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  sedeId    Int
+  
+  // Relaciones
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sede      Sede     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  
+  // Auditoría
+  grantedAt DateTime @default(now())
+  grantedBy Int      // ID del usuario que otorgó el acceso
+  isActive  Boolean  @default(true)
+  
+  @@unique([userId, sedeId])
+  @@index([userId])
+  @@index([sedeId])
+  @@map("user_sede_access")
+}
+
+// Nueva tabla: Define a qué SUBSEDES tiene acceso un usuario
+model UserSubsedeAccess {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  subsedeId  Int
+  
+  // Relaciones
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subsede    Subsede  @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  
+  // Auditoría
+  grantedAt  DateTime @default(now())
+  grantedBy  Int      // ID del usuario que otorgó el acceso
+  isActive   Boolean  @default(true)
+  
+  @@unique([userId, subsedeId])
+  @@index([userId])
+  @@index([subsedeId])
+  @@map("user_subsede_access")
 }
 
 // ============================================
@@ -193,8 +240,8 @@ model Theme {
 model User {
   id                     Int       @id @default(autoincrement())
   tenantId               Int       // Multi-tenant: usuario pertenece a un departamento
-  sedeId                 Int?      // Opcional: usuario asignado a sede específica
-  subsedeId              Int?      // Opcional: usuario asignado a municipio específico
+  sedeId                 Int?      // Sede principal del usuario (opcional)
+  subsedeId              Int?      // Subsede principal del usuario (opcional)
   
   email                  String    @unique
   username               String    @unique
@@ -203,12 +250,12 @@ model User {
   // Datos personales básicos
   firstName              String    @db.VarChar(100)
   lastName               String    @db.VarChar(100)
-  phoneCountryCode       String    @default("+57") @db.VarChar(5)
+  phoneCountryCode       String    @default("+52") @db.VarChar(5)
   phoneNumber            String    @db.VarChar(20)
   address                String?   @db.VarChar(255)
   
   // Identificación
-  documentType           DocumentType @default(CC)
+  documentType           DocumentType @default(CURP)
   documentNumber         String    @unique @db.VarChar(20)
   
   // Seguridad y recuperación de contraseña
@@ -219,6 +266,9 @@ model User {
   otpRequestCount        Int       @default(0)
   lastOtpRequestAt       DateTime?
   lastLoginAt            DateTime?
+  
+  // Control de acceso
+  accessLevel            AccessLevel @default(SUBSEDE) // Nivel de acceso del usuario
   
   // Estado y auditoría
   isActive               Boolean   @default(true)
@@ -233,6 +283,10 @@ model User {
   subsede                Subsede?  @relation(fields: [subsedeId], references: [id], onDelete: SetNull)
   roles                  UserRole[]
   
+  // Acceso explícito a sedes y subsedes
+  sedeAccess             UserSedeAccess[]
+  subsedeAccess          UserSubsedeAccess[]
+  
   @@index([tenantId])
   @@index([sedeId])
   @@index([subsedeId])
@@ -240,6 +294,7 @@ model User {
   @@index([documentNumber])
   @@index([isActive])
   @@index([deletedAt])
+  @@index([accessLevel])
   @@map("users")
 }
 
@@ -252,10 +307,6 @@ model UserRole {
   userId     Int
   roleId     Int
   
-  // Contexto de aplicación del rol (opcional)
-  sedeId     Int?     // Rol aplica solo en esta sede
-  subsedeId  Int?     // Rol aplica solo en esta subsede
-  
   // Relaciones
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -265,11 +316,9 @@ model UserRole {
   assignedBy Int      // ID del usuario que asignó el rol
   isActive   Boolean  @default(true)
 
-  @@unique([userId, roleId, sedeId, subsedeId])
+  @@unique([userId, roleId])
   @@index([userId])
   @@index([roleId])
-  @@index([sedeId])
-  @@index([subsedeId])
   @@map("user_roles")
 }
 
@@ -338,20 +387,28 @@ model Permission {
 // ============================================
 
 enum DocumentType {
-  CC              // Cédula de Ciudadanía
-  CE              // Cédula de Extranjería
-  TI              // Tarjeta de Identidad
+  CURP            // CURP (México)
+  RFC             // RFC (México)
+  INE             // INE/IFE (México)
   PASSPORT        // Pasaporte
-  NIT             // NIT (para empresas)
+  VISA            // Visa
   
   @@map("document_type")
 }
 
 enum RoleLevel {
-  SUPER_ADMIN     // Administrador del sistema
-  DEPARTAMENTAL   // Administrador departamental
-  MUNICIPAL       // Administrador municipal
+  SUPER_ADMIN     // Administrador del sistema completo
+  ESTATAL         // Administrador estatal (Sede)
+  MUNICIPAL       // Administrador municipal (Subsede)
   OPERATIVO       // Usuario operativo
   
   @@map("role_level")
+}
+
+enum AccessLevel {
+  TENANT          // Acceso a TODO el tenant (todos los estados y municipios)
+  SEDE            // Acceso a UNA o VARIAS sedes (estados)
+  SUBSEDE         // Acceso a UNA o VARIAS subsedes (municipios)
+  
+  @@map("access_level")
 }
