@@ -1,0 +1,357 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// CiviGest - Sistema de gestión ciudadana multi-tenant
+// Arquitectura: Departamentos (Sede) → Municipios (Subsede)
+// Schema optimizado para PostgreSQL con roles y permisos
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// MULTI-TENANCY Y ORGANIZACIÓN
+// ============================================
+
+model Tenant {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(100) // Nombre del departamento
+  code              String    @unique @db.VarChar(20) // Código único (ej: "ANT", "CUN")
+  nit               String?   @unique @db.VarChar(20)
+  legalName         String?   @db.VarChar(200)
+  
+  // Contacto
+  email             String    @unique
+  phoneCountryCode  String    @default("+57") @db.VarChar(5)
+  phoneNumber       String    @db.VarChar(20)
+  address           String?   @db.VarChar(255)
+  website           String?   @db.VarChar(255)
+  
+  // Logo y branding
+  logo              String?   @db.Text
+  favicon           String?   @db.Text
+  
+  // Configuración de tema
+  themeId           Int?
+  theme             Theme?    @relation(name: "TenantActiveTheme", fields: [themeId], references: [id])
+  
+  // Base de datos dedicada (opcional para aislamiento total)
+  databaseUrl       String?   @db.Text
+  databaseName      String?   @unique @db.VarChar(100)
+  
+  // Estado y auditoría
+  isActive          Boolean   @default(true)
+  deletedAt         DateTime? // Soft delete
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relaciones
+  sedes             Sede[]
+  users             User[]
+  customThemes      Theme[]   @relation(name: "TenantCustomThemes")
+  
+  @@index([code])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("tenants")
+}
+
+model Sede {
+  id                Int       @id @default(autoincrement())
+  tenantId          Int
+  name              String    @db.VarChar(100) // Nombre de la sede (Departamento)
+  code              String    @db.VarChar(20) // Código único dentro del tenant
+  
+  // Contacto y ubicación
+  email             String?
+  phoneCountryCode  String    
+  phoneNumber       String?   @db.VarChar(20)
+  address           String    @db.VarChar(255)
+  city              String    @db.VarChar(100)
+  state             String    @db.VarChar(100)
+  postalCode        String?   @db.VarChar(10)
+  
+  // Geolocalización
+  latitude          Decimal?  @db.Decimal(10, 8)
+  longitude         Decimal?  @db.Decimal(11, 8)
+  
+  // Estado y auditoría
+  isActive          Boolean   @default(true)
+  deletedAt         DateTime? // Soft delete
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdBy         Int?
+  
+  // Relaciones
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subsedes          Subsede[]
+  users             User[]
+  
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("sedes")
+}
+
+model Subsede {
+  id                Int       @id @default(autoincrement())
+  sedeId            Int
+  name              String    @db.VarChar(100) // Nombre del municipio
+  code              String    @db.VarChar(20) // Código DANE del municipio
+  
+  // Contacto y ubicación
+  email             String?
+  phoneCountryCode  String    @default("+57") @db.VarChar(5)
+  phoneNumber       String?   @db.VarChar(20)
+  address           String    @db.VarChar(255)
+  
+  // Geolocalización
+  latitude          Decimal?  @db.Decimal(10, 8)
+  longitude         Decimal?  @db.Decimal(11, 8)
+  
+  // Información municipal
+  population        Int?
+  daneCityCode      String?   @db.VarChar(10) // Código DANE completo
+  
+  // Estado y auditoría
+  isActive          Boolean   @default(true)
+  deletedAt         DateTime? // Soft delete
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdBy         Int?
+  
+  // Relaciones
+  sede              Sede      @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  users             User[]
+  
+  @@unique([sedeId, code])
+  @@index([sedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("subsedes")
+}
+
+// ============================================
+// SISTEMA DE TEMAS Y PERSONALIZACIÓN
+// ============================================
+
+model Theme {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(50)
+  description       String?   @db.VarChar(255)
+  
+  // Colores principales
+  primaryColor      String    @db.VarChar(7) // Hex color
+  secondaryColor    String    @db.VarChar(7)
+  accentColor       String    @db.VarChar(7)
+  
+  // Colores de fondo
+  backgroundColor   String    @db.VarChar(7)
+  surfaceColor      String    @db.VarChar(7)
+  
+  // Colores de texto
+  textPrimaryColor  String    @db.VarChar(7)
+  textSecondaryColor String   @db.VarChar(7)
+  
+  // Colores de estado
+  successColor      String    @db.VarChar(7)
+  warningColor      String    @db.VarChar(7)
+  errorColor        String    @db.VarChar(7)
+  infoColor         String    @db.VarChar(7)
+  
+  // Modo oscuro (opcional)
+  darkMode          Boolean   @default(false)
+  
+  // Estado
+  isDefault         Boolean   @default(false) // Tema por defecto del sistema
+  isCustom          Boolean   @default(false) // Tema personalizado por tenant
+  tenantId          Int?      // Si es custom, pertenece a un tenant
+  
+  // Auditoría
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relaciones
+  customOwner       Tenant?   @relation(name: "TenantCustomThemes", fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantsUsing      Tenant[]  @relation(name: "TenantActiveTheme")
+  
+  @@index([isDefault])
+  @@index([tenantId])
+  @@map("themes")
+}
+
+// ============================================
+// MODELOS DE USUARIO Y AUTENTICACIÓN
+// ============================================
+
+model User {
+  id                     Int       @id @default(autoincrement())
+  tenantId               Int       // Multi-tenant: usuario pertenece a un departamento
+  sedeId                 Int?      // Opcional: usuario asignado a sede específica
+  subsedeId              Int?      // Opcional: usuario asignado a municipio específico
+  
+  email                  String    @unique
+  username               String    @unique
+  password               String    // Hash bcrypt
+  
+  // Datos personales básicos
+  firstName              String    @db.VarChar(100)
+  lastName               String    @db.VarChar(100)
+  phoneCountryCode       String    @default("+57") @db.VarChar(5)
+  phoneNumber            String    @db.VarChar(20)
+  address                String?   @db.VarChar(255)
+  
+  // Identificación
+  documentType           DocumentType @default(CC)
+  documentNumber         String    @unique @db.VarChar(20)
+  
+  // Seguridad y recuperación de contraseña
+  isEmailVerified        Boolean   @default(false)
+  isPhoneVerified        Boolean   @default(false)
+  passwordResetToken     String?   @unique @db.VarChar(255)
+  passwordResetExpires   DateTime?
+  otpRequestCount        Int       @default(0)
+  lastOtpRequestAt       DateTime?
+  lastLoginAt            DateTime?
+  
+  // Estado y auditoría
+  isActive               Boolean   @default(true)
+  deletedAt              DateTime? // Soft delete
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  createdBy              Int?      // ID del usuario que creó este usuario
+  
+  // Relaciones
+  tenant                 Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sede                   Sede?     @relation(fields: [sedeId], references: [id], onDelete: SetNull)
+  subsede                Subsede?  @relation(fields: [subsedeId], references: [id], onDelete: SetNull)
+  roles                  UserRole[]
+  
+  @@index([tenantId])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([email])
+  @@index([documentNumber])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ============================================
+// SISTEMA DE ROLES Y PERMISOS (RBAC)
+// ============================================
+
+model UserRole {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  roleId     Int
+  
+  // Contexto de aplicación del rol (opcional)
+  sedeId     Int?     // Rol aplica solo en esta sede
+  subsedeId  Int?     // Rol aplica solo en esta subsede
+  
+  // Relaciones
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  // Auditoría
+  assignedAt DateTime @default(now())
+  assignedBy Int      // ID del usuario que asignó el rol
+  isActive   Boolean  @default(true)
+
+  @@unique([userId, roleId, sedeId, subsedeId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@map("user_roles")
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique @db.VarChar(50)
+  description String?          @db.VarChar(255)
+  isActive    Boolean          @default(true)
+  
+  // Nivel de rol (para jerarquía)
+  level       RoleLevel        @default(MUNICIPAL)
+  
+  // Auditoría
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relaciones
+  userRoles   UserRole[]
+  permissions RolePermission[]
+  
+  @@index([isActive])
+  @@index([level])
+  @@map("roles")
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  
+  // Relaciones
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Auditoría
+  grantedAt    DateTime   @default(now())
+  grantedBy    Int        // ID del usuario que otorgó el permiso
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  resource    String           @db.VarChar(50)  // Ej: fines, citizens, reports, settings
+  action      String           @db.VarChar(50)  // Ej: create, read, update, delete, approve
+  description String?          @db.VarChar(255)
+  isActive    Boolean          @default(true)
+  
+  // Auditoría
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relaciones
+  roles       RolePermission[]
+
+  @@unique([resource, action])
+  @@index([isActive])
+  @@map("permissions")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum DocumentType {
+  CC              // Cédula de Ciudadanía
+  CE              // Cédula de Extranjería
+  TI              // Tarjeta de Identidad
+  PASSPORT        // Pasaporte
+  NIT             // NIT (para empresas)
+  
+  @@map("document_type")
+}
+
+enum RoleLevel {
+  SUPER_ADMIN     // Administrador del sistema
+  DEPARTAMENTAL   // Administrador departamental
+  MUNICIPAL       // Administrador municipal
+  OPERATIVO       // Usuario operativo
+  
+  @@map("role_level")
+}
