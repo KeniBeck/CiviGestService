@@ -8,7 +8,6 @@ export * from './decorators/permissions.decorator';
 export * from './guards/jwt-auth.guard';
 export * from './guards/roles.guard';
 export * from './guards/permissions.guard';
-export * from './guards/tenant-access.guard';
 
 // Interfaces
 export * from './interfaces/jwt-payload.interface';

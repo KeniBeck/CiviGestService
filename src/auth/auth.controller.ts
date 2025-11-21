@@ -91,7 +91,6 @@ export class AuthController {
       id: user.id,
       email: user.email,
       username: user.username,
-      tenantId: user.tenantId,
       sedeId: user.sedeId,
       subsedeId: user.subsedeId,
       accessLevel: user.accessLevel,

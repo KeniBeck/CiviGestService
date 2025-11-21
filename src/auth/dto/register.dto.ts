@@ -104,23 +104,15 @@ export class RegisterDto {
 
   @ApiProperty({
     example: 1,
-    description: 'ID del tenant al que pertenece el usuario',
+    description: 'ID de la Sede a la que pertenece el usuario (departamento/cliente)',
   })
   @IsInt()
-  @IsNotEmpty({ message: 'Tenant ID es requerido' })
-  tenantId: number;
+  @IsNotEmpty({ message: 'Sede ID es requerido' })
+  sedeId: number;
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'ID de la sede principal del usuario',
-  })
-  @IsInt()
-  @IsOptional()
-  sedeId?: number;
-
-  @ApiPropertyOptional({
-    example: 1,
-    description: 'ID de la subsede principal del usuario',
+    description: 'ID de la subsede principal del usuario (municipio)',
   })
   @IsInt()
   @IsOptional()

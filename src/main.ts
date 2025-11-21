@@ -11,6 +11,8 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   // Validación global de DTOs
@@ -37,7 +39,6 @@ async function bootstrap() {
         name: 'Authorization',
         in: 'header',
       },
-      'access-token',
     )
     .build();
 

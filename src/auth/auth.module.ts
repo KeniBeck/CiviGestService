@@ -9,7 +9,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
-import { TenantAccessGuard } from './guards/tenant-access.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -41,7 +40,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     },
     RolesGuard,
     PermissionsGuard,
-    TenantAccessGuard,
   ],
   exports: [AuthService, JwtModule],
 })

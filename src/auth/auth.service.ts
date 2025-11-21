@@ -43,7 +43,7 @@ export class AuthService {
             },
           },
         },
-        tenant: {
+        sede: {
           select: {
             id: true,
             name: true,
@@ -63,9 +63,9 @@ export class AuthService {
       throw new UnauthorizedException('Usuario inactivo');
     }
 
-    // Validar estado del tenant
-    if (!user.tenant.isActive) {
-      throw new UnauthorizedException('Tenant inactivo');
+    // Validar estado de la sede
+    if (!user.sede.isActive) {
+      throw new UnauthorizedException('Sede inactiva');
     }
 
     // Validar contraseña
@@ -103,7 +103,6 @@ export class AuthService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        tenantId: user.tenantId,
         sedeId: user.sedeId,
         subsedeId: user.subsedeId,
         accessLevel: user.accessLevel,
@@ -143,33 +142,17 @@ export class AuthService {
       throw new ConflictException('El número de documento ya está registrado');
     }
 
-    // Validar que el tenant exista y esté activo
-    const tenant = await this.prisma.tenant.findFirst({
+    // Validar que la sede exista y esté activa
+    const sede = await this.prisma.sede.findFirst({
       where: {
-        id: registerDto.tenantId,
+        id: registerDto.sedeId,
         isActive: true,
         deletedAt: null,
       },
     });
 
-    if (!tenant) {
-      throw new BadRequestException('Tenant no válido o inactivo');
-    }
-
-    // Validar sede si se proporciona
-    if (registerDto.sedeId) {
-      const sede = await this.prisma.sede.findFirst({
-        where: {
-          id: registerDto.sedeId,
-          tenantId: registerDto.tenantId,
-          isActive: true,
-          deletedAt: null,
-        },
-      });
-
-      if (!sede) {
-        throw new BadRequestException('Sede no válida');
-      }
+    if (!sede) {
+      throw new BadRequestException('Sede no válida o inactiva');
     }
 
     // Validar subsede si se proporciona
@@ -177,13 +160,14 @@ export class AuthService {
       const subsede = await this.prisma.subsede.findFirst({
         where: {
           id: registerDto.subsedeId,
+          sedeId: registerDto.sedeId, // Debe pertenecer a la sede del usuario
           isActive: true,
           deletedAt: null,
         },
       });
 
       if (!subsede) {
-        throw new BadRequestException('Subsede no válida');
+        throw new BadRequestException('Subsede no válida o no pertenece a la sede especificada');
       }
     }
 
@@ -203,7 +187,6 @@ export class AuthService {
         address: registerDto.address,
         documentType: registerDto.documentType,
         documentNumber: registerDto.documentNumber,
-        tenantId: registerDto.tenantId,
         sedeId: registerDto.sedeId,
         subsedeId: registerDto.subsedeId,
         accessLevel: registerDto.accessLevel,
@@ -242,7 +225,6 @@ export class AuthService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        tenantId: user.tenantId,
         sedeId: user.sedeId,
         subsedeId: user.subsedeId,
         accessLevel: user.accessLevel,
@@ -275,7 +257,6 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       username: user.username,
-      tenantId: user.tenantId,
       sedeId: user.sedeId,
       subsedeId: user.subsedeId,
       accessLevel: user.accessLevel,

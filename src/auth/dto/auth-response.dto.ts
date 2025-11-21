@@ -28,8 +28,7 @@ export class AuthResponseDto {
     username: string;
     firstName: string;
     lastName: string;
-    tenantId: number;
-    sedeId: number | null;
+    sedeId: number; // Ya no es nullable, siempre pertenece a una Sede
     subsedeId: number | null;
     accessLevel: string;
     roles: string[];
