@@ -29,3 +29,13 @@ export const REQUIRE_POLICIES_KEY = 'require-policies';
 export const RequirePermissions = (...policies: Policy[]) => {
   return SetMetadata(REQUIRE_POLICIES_KEY, policies);
 };
+
+/**
+ * Alias de RequirePermissions para mantener compatibilidad
+ * Puede recibir un solo Policy o un array de Policies
+ */
+export const Permissions = (policies: Policy | Policy[]) => {
+  const policiesArray = Array.isArray(policies) ? policies : [policies];
+  return SetMetadata(REQUIRE_POLICIES_KEY, policiesArray);
+};
+

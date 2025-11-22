@@ -66,7 +66,7 @@ export class SubsedesController {
   ) {
     return this.subsedesService.create(
       createSubsedeDto,
-      user.id,
+      user.userId,
       user.sedeId,
       user.accessLevel,
       user.roles,
@@ -99,7 +99,7 @@ export class SubsedesController {
       user.sedeId,
       user.subsedeId,
       user.accessLevel,
-      user.id,
+      user.userId,
       user.roles,
       user.subsedeAccessIds,
       sedeId,
@@ -159,7 +159,7 @@ export class SubsedesController {
       user.sedeId,
       user.subsedeId,
       user.accessLevel,
-      user.id,
+      user.userId,
       user.roles,
       user.subsedeAccessIds,
     );
@@ -196,7 +196,7 @@ export class SubsedesController {
     return this.subsedesService.update(
       id,
       updateSubsedeDto,
-      user.id,
+      user.userId,
       user.sedeId,
       user.subsedeId,
       user.accessLevel,

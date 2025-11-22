@@ -88,7 +88,7 @@ export class AuthController {
   })
   async getProfile(@CurrentUser() user: RequestUser) {
     return {
-      id: user.id,
+      id: user.userId,
       email: user.email,
       username: user.username,
       sedeId: user.sedeId,
@@ -118,7 +118,7 @@ export class AuthController {
     return {
       valid: true,
       user: {
-        id: user.id,
+        id: user.userId,
         email: user.email,
         username: user.username,
       },

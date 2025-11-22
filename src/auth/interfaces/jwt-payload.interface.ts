@@ -25,5 +25,5 @@ export interface JwtPayload {
  * Usuario autenticado adjunto al request
  */
 export interface RequestUser extends JwtPayload {
-  id: number; // Alias de sub
+  userId: number; // Alias de sub (ID del usuario)
 }
