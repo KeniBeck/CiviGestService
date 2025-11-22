@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubsedesService } from '../../sudsedes/service/sudsedes.service';
 import { UserService } from '../../user/user.service';
+import { ValidationService } from '../../common/services/validation.service';
 import { CreateSedeDto } from '../dto/create-sede.dto';
 import { UpdateSedeDto } from '../dto/update-sede.dto';
 import { AccessLevel } from '@prisma/client';
@@ -26,6 +27,7 @@ export class SedesService {
     private prisma: PrismaService,
     private subsedesService: SubsedesService,
     private userService: UserService,
+    private validationService: ValidationService,
   ) {}
 
   /**
@@ -88,6 +90,11 @@ export class SedesService {
           'No pueden haber subsedes con códigos duplicados',
         );
       }
+    }
+
+    // Validar que el tema existe (si se proporciona)
+    if (sedeData.themeId) {
+      await this.validationService.validateThemeExists(sedeData.themeId);
     }
 
     // Generar datos del usuario administrador basados en la sede
@@ -264,6 +271,16 @@ export class SedesService {
         throw new ConflictException(
           `Ya existe una sede con el email ${updateSedeDto.email}`,
         );
+      }
+    }
+
+    // Validar que el tema existe si se está actualizando
+    if (updateSedeDto.themeId !== undefined) {
+      if (updateSedeDto.themeId === null) {
+        // Se está removiendo el tema, permitido
+      } else {
+        // Validar que el tema existe y puede ser usado por esta sede
+        await this.validationService.validateThemeExists(updateSedeDto.themeId, id);
       }
     }
 

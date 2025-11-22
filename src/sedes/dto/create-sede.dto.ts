@@ -147,6 +147,14 @@ export class CreateSedeDto {
   longitude?: string;
 
   @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del tema a aplicar a la sede (opcional)',
+  })
+  @IsOptional()
+  @IsInt({ message: 'El ID del tema debe ser un número entero' })
+  themeId?: number;
+
+  @ApiPropertyOptional({
     description: 'Lista de subsedes a crear junto con la sede',
     type: [CreateSubsedeInSedeDto],
     example: [
