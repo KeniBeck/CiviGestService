@@ -1,4 +1,8 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -29,5 +33,23 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     // Si no es pública, validar JWT
     return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any) {
+    // Si hay un error o no hay usuario, lanzar excepción
+    if (err || !user) {
+      if (info?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token expirado');
+      }
+      if (info?.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Token inválido');
+      }
+      if (info?.name === 'NotBeforeError') {
+        throw new UnauthorizedException('Token aún no es válido');
+      }
+      throw err || new UnauthorizedException('No autorizado');
+    }
+
+    return user;
   }
 }
