@@ -3,8 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubsedesService } from '../../sudsedes/service/sudsedes.service';
+import { UserService } from '../../user/user.service';
+import { ValidationService } from '../../common/services/validation.service';
 import { CreateSedeDto } from '../dto/create-sede.dto';
 import { UpdateSedeDto } from '../dto/update-sede.dto';
 import { AccessLevel } from '@prisma/client';
@@ -19,7 +23,12 @@ import { AccessLevel } from '@prisma/client';
  */
 @Injectable()
 export class SedesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subsedesService: SubsedesService,
+    private userService: UserService,
+    private validationService: ValidationService,
+  ) {}
 
   /**
    * Crear nueva sede (departamento/cliente)
@@ -27,7 +36,21 @@ export class SedesService {
    */
   async create(createSedeDto: CreateSedeDto, userId: number) {
     // Evitar que un `id` enviado en el DTO provoque conflicto con la PK
-    const { id, ...sedeData } = createSedeDto as any;
+    const { id, subsedes, ...sedeData } = createSedeDto as any;
+
+    // Buscar rol "Administrador Estatal" automáticamente
+    const adminRole = await this.prisma.role.findFirst({
+      where: {
+        name: 'Administrador Estatal',
+        isActive: true,
+      },
+    });
+
+    if (!adminRole) {
+      throw new BadRequestException(
+        'No se encontró el rol "Administrador Estatal". Debe crear este rol primero',
+      );
+    }
 
     // Verificar que no exista una sede con el mismo código
     const existingSede = await this.prisma.sede.findFirst({
@@ -57,6 +80,28 @@ export class SedesService {
       );
     }
 
+    // Si hay subsedes, validar códigos únicos
+    if (subsedes && subsedes.length > 0) {
+      const codes = subsedes.map((s: any) => s.code);
+      const uniqueCodes = new Set(codes);
+      
+      if (codes.length !== uniqueCodes.size) {
+        throw new ConflictException(
+          'No pueden haber subsedes con códigos duplicados',
+        );
+      }
+    }
+
+    // Validar que el tema existe (si se proporciona)
+    if (sedeData.themeId) {
+      await this.validationService.validateThemeExists(sedeData.themeId);
+    }
+
+    // Generar datos del usuario administrador basados en la sede
+    const adminUsername = sedeData.email.split('@')[0]; // Extraer parte antes del @
+    const adminPassword = `${sedeData.code}Admin123!`; // Código de sede + Admin123!
+    const adminDocumentNumber = `${sedeData.code}${Date.now().toString().slice(-10)}`; // Código + timestamp
+
     // Preparar datos para crear la sede
     const createData = {
       ...sedeData,
@@ -71,19 +116,72 @@ export class SedesService {
 
     try {
       // Crear la sede
-      return await this.prisma.sede.create({
+      const sede = await this.prisma.sede.create({
         data: createData,
-        include: {
-          _count: {
-            select: {
-              subsedes: true,
-              users: true,
-            },
-          },
-        },
       });
+
+      // Crear usuario administrador ESTATAL para la sede
+      const adminUser = await this.userService.create(
+        {
+          sedeId: sede.id,
+          subsedeId: undefined, // Usuario ESTATAL no tiene subsede
+          email: sedeData.email, // Usar email de la sede
+          username: adminUsername, // Generado del email
+          password: adminPassword, // Generado automáticamente
+          firstName: sedeData.name, // Usar nombre de la sede
+          lastName: 'Administrador', // Apellido genérico
+          phoneCountryCode: sedeData.phoneCountryCode || '+52',
+          phoneNumber: sedeData.phoneNumber, // Usar teléfono de la sede
+          address: sedeData.address, // Usar dirección de la sede
+          documentType: 'RFC', // RFC por defecto para instituciones
+          documentNumber: adminDocumentNumber, // Generado automáticamente
+          accessLevel: AccessLevel.SEDE, // Usuario ESTATAL
+          roleIds: [adminRole.id], // Rol ESTATAL
+        },
+        userId, // Super Admin que crea la sede
+        sede.id, // sedeId
+        null, // subsedeId
+        AccessLevel.SEDE, // Super Admin tiene nivel SEDE
+        ['Super Administrador'], // roles del creador
+      );
+
+      // Si hay subsedes, crearlas usando el servicio de Subsedes
+      let createdSubsedes: any[] = [];
+      if (subsedes && subsedes.length > 0) {
+        for (const subsedeData of subsedes) {
+          const subsede = await this.subsedesService.create(
+            {
+              sedeId: sede.id,
+              name: subsedeData.name,
+              code: subsedeData.code,
+            },
+            userId,
+            sede.id,
+            AccessLevel.SEDE,
+            ['Super Administrador'],
+          );
+          createdSubsedes.push(subsede);
+        }
+      }
+
+      // Retornar sede con subsedes y usuario admin creados
+      return {
+        ...sede,
+        subsedes: createdSubsedes,
+        admin: {
+          id: adminUser.id,
+          email: adminUser.email,
+          username: adminUser.username,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          temporaryPassword: adminPassword, // Retornar contraseña temporal
+        },
+        _count: {
+          subsedes: createdSubsedes.length,
+          users: 1,
+        },
+      };
     } catch (error: any) {
-      // Manejar errores de clave única duplicada
       if (error?.code === 'P2002') {
         const field = error?.meta?.target?.[0] || 'campo único';
         throw new ConflictException(
@@ -176,11 +274,23 @@ export class SedesService {
       }
     }
 
-    // Actualizar la sede
+    // Validar que el tema existe si se está actualizando
+    if (updateSedeDto.themeId !== undefined) {
+      if (updateSedeDto.themeId === null) {
+        // Se está removiendo el tema, permitido
+      } else {
+        // Validar que el tema existe y puede ser usado por esta sede
+        await this.validationService.validateThemeExists(updateSedeDto.themeId, id);
+      }
+    }
+
+    // Actualizar la sede (excluir subsedes del update)
+    const { subsedes: _, ...dataToUpdate } = updateSedeDto as any;
+    
     return this.prisma.sede.update({
       where: { id },
       data: {
-        ...updateSedeDto,
+        ...dataToUpdate,
         latitude: updateSedeDto.latitude
           ? parseFloat(updateSedeDto.latitude)
           : undefined,

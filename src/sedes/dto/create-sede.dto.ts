@@ -6,8 +6,21 @@ import {
   IsDecimal,
   MaxLength,
   MinLength,
+  IsArray,
+  ValidateNested,
+  IsInt,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { CreateSubsedeDto } from '../../sudsedes/dto/create-sudsede.dto';
+
+/**
+ * DTO para crear subsedes al momento de crear una sede
+ * Omite el sedeId porque se asigna automáticamente
+ */
+export class CreateSubsedeInSedeDto extends OmitType(CreateSubsedeDto, [
+  'sedeId',
+] as const) {}
 
 export class CreateSedeDto {
   @ApiProperty({
@@ -132,4 +145,32 @@ export class CreateSedeDto {
   @IsOptional()
   @IsDecimal({ decimal_digits: '1,8' })
   longitude?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID del tema a aplicar a la sede (opcional)',
+  })
+  @IsOptional()
+  @IsInt({ message: 'El ID del tema debe ser un número entero' })
+  themeId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Lista de subsedes a crear junto con la sede',
+    type: [CreateSubsedeInSedeDto],
+    example: [
+      {
+        name: 'Municipio de Guadalajara',
+        code: 'GDL'
+      },
+      {
+        name: 'Municipio de Zapopan',
+        code: 'ZPN'
+      },
+    ],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSubsedeInSedeDto)
+  subsedes?: CreateSubsedeInSedeDto[];
 }

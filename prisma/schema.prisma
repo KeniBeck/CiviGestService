@@ -73,21 +73,7 @@ model Subsede {
   sedeId Int
   name   String @db.VarChar(100) // Nombre del municipio
   code   String @db.VarChar(20) // Código del municipio (único dentro de la sede)
-
-  // Contacto y ubicación
-  email            String?
-  phoneCountryCode String  @default("+52") @db.VarChar(5)
-  phoneNumber      String? @db.VarChar(20)
-  address          String  @db.VarChar(255)
-
-  // Geolocalización
-  latitude  Decimal? @db.Decimal(10, 8)
-  longitude Decimal? @db.Decimal(11, 8)
-
-  // Información municipal
-  population       Int?
-  municipalityCode String? @db.VarChar(10) // Código INEGI
-
+  
   // Estado y auditoría
   isActive  Boolean   @default(true)
   deletedAt DateTime? // Soft delete

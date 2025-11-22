@@ -7,95 +7,86 @@ export class FinderSedesService {
 
     constructor(private prisma: PrismaService) { }
 
-    /**
-      * Listar todas las sedes
-      * - SUPER_ADMIN: Ve todas las sedes
-      * - SEDE: Solo ve su propia sede y aquellas a las que tiene acceso explícito
-      * - SUBSEDE: Ve la sede a la que pertenece su subsede
-      */
-    async findAll(
-        sedeId: number,
-        accessLevel: AccessLevel,
-        userId: number,
-        roles: string[],
-    ) {
-        // Si es Super Administrador, puede ver TODAS las sedes
-        if (roles?.includes('Super Administrador')) {
-            return this.prisma.sede.findMany({
-                where: {
-                    deletedAt: null,
-                },
-                include: {
-                    _count: {
-                        select: {
-                            subsedes: true,
-                            users: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    name: 'asc',
-                },
-            });
-        }
-
-        // Si el usuario tiene acceso SEDE, puede ver su sede y las que tenga acceso explícito
-        if (accessLevel === AccessLevel.SEDE) {
-            // Obtener sedes con acceso explícito
-            const userSedeAccess = await this.prisma.userSedeAccess.findMany({
-                where: {
-                    userId,
-                    isActive: true,
-                },
-                select: {
-                    sedeId: true,
-                },
-            });
-
-            const accessibleSedeIds = [
-                sedeId, // Su propia sede
-                ...userSedeAccess.map((usa) => usa.sedeId),
-            ];
-
-            return this.prisma.sede.findMany({
-                where: {
-                    id: { in: accessibleSedeIds },
-                    deletedAt: null,
-                },
-                include: {
-                    _count: {
-                        select: {
-                            subsedes: true,
-                            users: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    name: 'asc',
-                },
-            });
-        }
-
-        // Si tiene acceso SUBSEDE, solo ve su sede
-        if (accessLevel === AccessLevel.SUBSEDE) {
-            return this.prisma.sede.findMany({
-                where: {
-                    id: sedeId,
-                    deletedAt: null,
-                },
-                include: {
-                    _count: {
-                        select: {
-                            subsedes: true,
-                            users: true,
-                        },
-                    },
-                },
-            });
-        }
-
-        return [];
+  /**
+    * Listar todas las sedes
+    * - SUPER_ADMIN: Ve todas las sedes
+    * - SEDE: Solo ve su propia sede y aquellas a las que tiene acceso explícito
+    * - SUBSEDE: Ve la sede a la que pertenece su subsede
+    */
+  async findAll(
+    sedeId: number,
+    accessLevel: AccessLevel,
+    userId: number,
+    roles: string[],
+    sedeAccessIds: number[],
+  ) {
+    // Si es Super Administrador, puede ver TODAS las sedes
+    if (roles?.includes('Super Administrador')) {
+      return this.prisma.sede.findMany({
+        where: {
+          deletedAt: null,
+        },
+        include: {
+          _count: {
+            select: {
+              subsedes: true,
+              users: true,
+            },
+          },
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
     }
+
+    // Si el usuario tiene acceso SEDE, puede ver su sede y las que tenga acceso explícito
+    if (accessLevel === AccessLevel.SEDE) {
+      // Combinar sede propia con accesos explícitos del token
+      const accessibleSedeIds = [
+        sedeId, // Su propia sede
+        ...sedeAccessIds, // Accesos explícitos ya cargados en el token
+      ];
+
+      return this.prisma.sede.findMany({
+        where: {
+          id: { in: accessibleSedeIds },
+          deletedAt: null,
+        },
+        include: {
+          _count: {
+            select: {
+              subsedes: true,
+              users: true,
+            },
+          },
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    }
+
+    // Si tiene acceso SUBSEDE, solo ve su sede
+    if (accessLevel === AccessLevel.SUBSEDE) {
+      return this.prisma.sede.findMany({
+        where: {
+          id: sedeId,
+          deletedAt: null,
+        },
+        include: {
+          _count: {
+            select: {
+              subsedes: true,
+              users: true,
+            },
+          },
+        },
+      });
+    }
+
+    return [];
+  }
 
     /**
      * Obtener una sede por ID
@@ -123,7 +114,6 @@ export class FinderSedesService {
                         name: true,
                         code: true,
                         isActive: true,
-                        address: true,
                     },
                     orderBy: {
                         name: 'asc',

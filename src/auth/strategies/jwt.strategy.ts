@@ -67,7 +67,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
         // Retornar el usuario con toda la información del payload
         return {
-            id: payload.sub,
+            userId: payload.sub, // Alias de sub para facilitar el uso en controllers
             sub: payload.sub,
             email: payload.email,
             username: payload.username,
@@ -76,6 +76,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             accessLevel: payload.accessLevel,
             roles: payload.roles,
             permissions: payload.permissions,
+            sedeAccessIds: payload.sedeAccessIds,
+            subsedeAccessIds: payload.subsedeAccessIds,
         };
     }
 }

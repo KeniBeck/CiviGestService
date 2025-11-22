@@ -64,7 +64,7 @@ export class SedesController {
     @Body() createSedeDto: CreateSedeDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.sedesService.create(createSedeDto, user.id);
+    return this.sedesService.create(createSedeDto, user.userId);
   }
 
   /**
@@ -84,8 +84,9 @@ export class SedesController {
     return this.finderSedesService.findAll(
       user.sedeId,
       user.accessLevel,
-      user.id,
+      user.userId,
       user.roles,
+      user.sedeAccessIds,
     );
   }
 
@@ -115,7 +116,7 @@ export class SedesController {
       id,
       user.sedeId,
       user.accessLevel,
-      user.id,
+      user.userId,
       user.roles,
     );
   }
@@ -150,7 +151,7 @@ export class SedesController {
       updateSedeDto,
       user.sedeId,
       user.accessLevel,
-      user.id,
+      user.userId,
       user.roles,
     );
   }
