@@ -14,6 +14,10 @@ export interface JwtPayload {
   accessLevel: AccessLevel;
   roles: string[]; // Nombres de roles
   permissions: string[]; // permissions en formato "resource:action"
+  
+  // Accesos explícitos (para evitar consultas repetidas)
+  sedeAccessIds: number[]; // IDs de sedes a las que tiene acceso explícito
+  subsedeAccessIds: number[]; // IDs de subsedes a las que tiene acceso explícito
 }
 
 /**

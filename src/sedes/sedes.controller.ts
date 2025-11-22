@@ -86,6 +86,7 @@ export class SedesController {
       user.accessLevel,
       user.id,
       user.roles,
+      user.sedeAccessIds,
     );
   }
 

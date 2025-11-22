@@ -253,6 +253,28 @@ export class AuthService {
     roles: string[],
     permissions: string[],
   ): Promise<string> {
+    // Obtener accesos explícitos a sedes
+    const sedeAccess = await this.prisma.userSedeAccess.findMany({
+      where: {
+        userId: user.id,
+        isActive: true,
+      },
+      select: {
+        sedeId: true,
+      },
+    });
+
+    // Obtener accesos explícitos a subsedes
+    const subsedeAccess = await this.prisma.userSubsedeAccess.findMany({
+      where: {
+        userId: user.id,
+        isActive: true,
+      },
+      select: {
+        subsedeId: true,
+      },
+    });
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -262,6 +284,8 @@ export class AuthService {
       accessLevel: user.accessLevel,
       roles,
       permissions,
+      sedeAccessIds: sedeAccess.map((sa) => sa.sedeId),
+      subsedeAccessIds: subsedeAccess.map((ssa) => ssa.subsedeId),
     };
 
     return this.jwtService.sign(payload);

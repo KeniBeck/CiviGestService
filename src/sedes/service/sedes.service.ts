@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubsedesService } from '../../sudsedes/service/sudsedes.service';
 import { CreateSedeDto } from '../dto/create-sede.dto';
 import { UpdateSedeDto } from '../dto/update-sede.dto';
 import { AccessLevel } from '@prisma/client';
@@ -19,7 +20,10 @@ import { AccessLevel } from '@prisma/client';
  */
 @Injectable()
 export class SedesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subsedesService: SubsedesService,
+  ) {}
 
   /**
    * Crear nueva sede (departamento/cliente)
@@ -27,7 +31,7 @@ export class SedesService {
    */
   async create(createSedeDto: CreateSedeDto, userId: number) {
     // Evitar que un `id` enviado en el DTO provoque conflicto con la PK
-    const { id, ...sedeData } = createSedeDto as any;
+    const { id, subsedes, ...sedeData } = createSedeDto as any;
 
     // Verificar que no exista una sede con el mismo código
     const existingSede = await this.prisma.sede.findFirst({
@@ -57,6 +61,18 @@ export class SedesService {
       );
     }
 
+    // Si hay subsedes, validar códigos únicos
+    if (subsedes && subsedes.length > 0) {
+      const codes = subsedes.map((s: any) => s.code);
+      const uniqueCodes = new Set(codes);
+      
+      if (codes.length !== uniqueCodes.size) {
+        throw new ConflictException(
+          'No pueden haber subsedes con códigos duplicados',
+        );
+      }
+    }
+
     // Preparar datos para crear la sede
     const createData = {
       ...sedeData,
@@ -71,17 +87,40 @@ export class SedesService {
 
     try {
       // Crear la sede
-      return await this.prisma.sede.create({
+      const sede = await this.prisma.sede.create({
         data: createData,
-        include: {
-          _count: {
-            select: {
-              subsedes: true,
-              users: true,
-            },
-          },
-        },
       });
+
+      // Si hay subsedes, crearlas usando el servicio de Subsedes
+      let createdSubsedes: any[] = [];
+      if (subsedes && subsedes.length > 0) {
+        for (const subsedeData of subsedes) {
+          // Usar el servicio de Subsedes para crear cada subsede
+          // El servicio se encargará de todas las validaciones
+          const subsede = await this.subsedesService.create(
+            {
+              sedeId: sede.id,
+              name: subsedeData.name,
+              code: subsedeData.code,
+            },
+            userId,
+            sede.id, // userSedeId (el usuario que crea la sede tiene acceso a ella)
+            AccessLevel.SEDE, // accessLevel del usuario (se asume nivel SEDE)
+            ['Super Administrador'], // roles (solo Super Admin puede crear sedes)
+          );
+          createdSubsedes.push(subsede);
+        }
+      }
+
+      // Retornar sede con subsedes creadas
+      return {
+        ...sede,
+        subsedes: createdSubsedes,
+        _count: {
+          subsedes: createdSubsedes.length,
+          users: 0,
+        },
+      };
     } catch (error: any) {
       // Manejar errores de clave única duplicada
       if (error?.code === 'P2002') {
@@ -176,11 +215,13 @@ export class SedesService {
       }
     }
 
-    // Actualizar la sede
+    // Actualizar la sede (excluir subsedes del update)
+    const { subsedes: _, ...dataToUpdate } = updateSedeDto as any;
+    
     return this.prisma.sede.update({
       where: { id },
       data: {
-        ...updateSedeDto,
+        ...dataToUpdate,
         latitude: updateSedeDto.latitude
           ? parseFloat(updateSedeDto.latitude)
           : undefined,

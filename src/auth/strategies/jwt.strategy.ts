@@ -76,6 +76,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             accessLevel: payload.accessLevel,
             roles: payload.roles,
             permissions: payload.permissions,
+            sedeAccessIds: payload.sedeAccessIds,
+            subsedeAccessIds: payload.subsedeAccessIds,
         };
     }
 }
