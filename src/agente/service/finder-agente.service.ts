@@ -50,6 +50,11 @@ export class FinderAgenteService {
       whereClause.departamentoId = filters.departamentoId;
     }
 
+    // Filtro por patrulla
+    if (filters.patrullaId) {
+      whereClause.patrullaId = filters.patrullaId;
+    }
+
     // Filtro isActive
     if (filters.isActive !== undefined) {
       whereClause.isActive = filters.isActive;
@@ -97,34 +102,30 @@ export class FinderAgenteService {
       include: {
         sede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         subsede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         tipo: {
           select: {
-            id: true,
             tipo: true,
           },
         },
         departamento: {
           select: {
-            id: true,
             nombre: true,
             descripcion: true,
           },
         },
-        _count: {
+        patrulla: {
           select: {
-            patrullas: true,
+            numPatrulla: true,
           },
         },
       },
@@ -193,43 +194,30 @@ export class FinderAgenteService {
       include: {
         sede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         subsede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         tipo: {
           select: {
-            id: true,
             tipo: true,
           },
         },
         departamento: {
           select: {
-            id: true,
             nombre: true,
             descripcion: true,
           },
         },
-        patrullas: {
-          where: {
-            deletedAt: null,
-          },
+        patrulla: {
           select: {
-            id: true,
-            marca: true,
-            modelo: true,
-            placa: true,
             numPatrulla: true,
-            serie: true,
-            isActive: true,
           },
         },
       },

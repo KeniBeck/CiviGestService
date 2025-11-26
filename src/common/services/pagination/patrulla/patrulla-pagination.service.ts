@@ -59,10 +59,6 @@ export class PatrullaPaginationService {
       whereClause.isActive = filters.isActive;
     }
 
-    if (filters?.agenteId) {
-      whereClause.agenteId = filters.agenteId;
-    }
-
     if (filters?.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
@@ -96,7 +92,10 @@ export class PatrullaPaginationService {
             code: true,
           },
         },
-        agente: {
+        agentes: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             nombres: true,
@@ -107,12 +106,6 @@ export class PatrullaPaginationService {
               select: {
                 id: true,
                 tipo: true,
-              },
-            },
-            departamento: {
-              select: {
-                id: true,
-                nombre: true,
               },
             },
           },

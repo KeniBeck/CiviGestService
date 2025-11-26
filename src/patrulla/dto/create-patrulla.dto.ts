@@ -1,20 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * DTO para crear una nueva patrulla
  */
 export class CreatePatrullaDto {
-  @ApiProperty({
-    description: 'ID del agente asignado a esta patrulla',
-    example: 1,
-  })
-  @IsInt({ message: 'agenteId debe ser un número entero' })
-  @IsPositive({ message: 'agenteId debe ser un número positivo' })
-  @Type(() => Number)
-  agenteId: number;
-
   @ApiProperty({
     description: 'Marca de la patrulla',
     example: 'Ford',

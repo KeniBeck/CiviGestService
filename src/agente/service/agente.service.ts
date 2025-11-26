@@ -79,6 +79,24 @@ export class AgenteService {
       }
     }
 
+    // Verificar que la patrulla existe si se proporciona
+    if (createAgenteDto.patrullaId) {
+      const patrulla = await this.prisma.patrulla.findFirst({
+        where: {
+          id: createAgenteDto.patrullaId,
+          subsedeId: userSubsedeId,
+          isActive: true,
+          deletedAt: null,
+        },
+      });
+
+      if (!patrulla) {
+        throw new BadRequestException(
+          `Patrulla con ID ${createAgenteDto.patrullaId} no encontrada, inactiva o no pertenece a su municipio`,
+        );
+      }
+    }
+
     // Hashear contraseña si se proporciona
     let hashedPassword: string | undefined;
     if (createAgenteDto.contrasena) {
@@ -97,31 +115,32 @@ export class AgenteService {
       include: {
         sede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         subsede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         tipo: {
           select: {
-            id: true,
             tipo: true,
           },
         },
         departamento: {
           select: {
-            id: true,
             nombre: true,
             descripcion: true,
           },
         },
+        patrulla:{
+          select:{
+            numPatrulla: true
+          }
+        }
       },
     });
   }
@@ -202,6 +221,30 @@ export class AgenteService {
           `Departamento con ID ${updateAgenteDto.departamentoId} no encontrado o no pertenece a este municipio`,
         );
       }
+    }
+
+    // Si se cambia patrullaId, verificar que existe y pertenece a la misma subsede
+    if (
+      updateAgenteDto.patrullaId !== undefined &&
+      updateAgenteDto.patrullaId !== agente.patrullaId
+    ) {
+      if (updateAgenteDto.patrullaId !== null) {
+        const patrulla = await this.prisma.patrulla.findFirst({
+          where: {
+            id: updateAgenteDto.patrullaId,
+            subsedeId: agente.subsedeId,
+            isActive: true,
+            deletedAt: null,
+          },
+        });
+
+        if (!patrulla) {
+          throw new BadRequestException(
+            `Patrulla con ID ${updateAgenteDto.patrullaId} no encontrada, inactiva o no pertenece al mismo municipio`,
+          );
+        }
+      }
+      // Si patrullaId es null, se permite (desasignar patrulla)
     }
 
     // Hashear nueva contraseña si se proporciona

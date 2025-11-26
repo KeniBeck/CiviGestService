@@ -84,12 +84,6 @@ export class PatrullaController {
   @Permissions([{ resource: 'patrullas', action: 'read' }] as Policy[])
   @ApiOperation({ summary: 'Obtener todas las patrullas con filtros' })
   @ApiQuery({
-    name: 'agenteId',
-    required: false,
-    type: Number,
-    description: 'Filtrar por ID de agente',
-  })
-  @ApiQuery({
     name: 'isActive',
     required: false,
     type: Boolean,
@@ -135,12 +129,6 @@ export class PatrullaController {
     required: false,
     type: Number,
     description: 'Elementos por página (por defecto 10, máximo 100)',
-  })
-  @ApiQuery({
-    name: 'agenteId',
-    required: false,
-    type: Number,
-    description: 'Filtrar por ID de agente',
   })
   @ApiQuery({
     name: 'isActive',

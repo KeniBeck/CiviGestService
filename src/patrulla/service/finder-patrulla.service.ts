@@ -40,11 +40,6 @@ export class FinderPatrullaService {
       }
     }
 
-    // Filtro por agente
-    if (filters.agenteId) {
-      whereClause.agenteId = filters.agenteId;
-    }
-
     // Filtro isActive
     if (filters.isActive !== undefined) {
       whereClause.isActive = filters.isActive;
@@ -104,7 +99,10 @@ export class FinderPatrullaService {
             code: true,
           },
         },
-        agente: {
+        agentes: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             nombres: true,
@@ -117,13 +115,8 @@ export class FinderPatrullaService {
                 tipo: true,
               },
             },
-            departamento: {
-              select: {
-                id: true,
-                nombre: true,
-              },
-            },
           },
+          take: 3,
         },
       },
       orderBy: [{ createdAt: 'desc' }],
@@ -199,7 +192,10 @@ export class FinderPatrullaService {
             code: true,
           },
         },
-        agente: {
+        agentes: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             nombres: true,

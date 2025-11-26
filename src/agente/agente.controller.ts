@@ -97,6 +97,12 @@ export class AgenteController {
     description: 'Filtrar por ID de departamento',
   })
   @ApiQuery({
+    name: 'patrullaId',
+    required: false,
+    type: Number,
+    description: 'Filtrar por ID de patrulla asignada',
+  })
+  @ApiQuery({
     name: 'isActive',
     required: false,
     type: Boolean,

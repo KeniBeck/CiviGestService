@@ -7,15 +7,6 @@ import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validato
  */
 export class FilterPatrullaDto {
   @ApiPropertyOptional({
-    description: 'Filtrar por ID de agente',
-    example: 1,
-  })
-  @IsOptional()
-  @IsInt({ message: 'agenteId debe ser un número entero' })
-  @Type(() => Number)
-  agenteId?: number;
-
-  @ApiPropertyOptional({
     description: 'Filtrar por estado activo/inactivo',
     example: true,
   })

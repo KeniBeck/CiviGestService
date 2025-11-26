@@ -130,4 +130,14 @@ export class CreateAgenteDto {
   @IsPositive()
   @Type(() => Number)
   departamentoId?: number;
+
+  @ApiPropertyOptional({
+    description: 'ID de la patrulla asignada',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  patrullaId?: number;
 }

@@ -31,22 +31,6 @@ export class PatrullaService {
       );
     }
 
-    // Verificar que el agente existe, está activo y pertenece a la MISMA subsede
-    const agente = await this.prisma.agente.findFirst({
-      where: {
-        id: createDto.agenteId,
-        deletedAt: null,
-        isActive: true,
-        subsedeId: userSubsedeId,
-      },
-    });
-
-    if (!agente) {
-      throw new BadRequestException(
-        `El agente con ID ${createDto.agenteId} no existe, no está activo o no pertenece a su municipio`,
-      );
-    }
-
     // Verificar que la placa sea única globalmente
     const existingPlaca = await this.prisma.patrulla.findFirst({
       where: {
@@ -99,7 +83,10 @@ export class PatrullaService {
             code: true,
           },
         },
-        agente: {
+        agentes: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             nombres: true,
@@ -137,24 +124,6 @@ export class PatrullaService {
       accessLevel,
       roles,
     );
-
-    // Si cambia el agente, verificar que existe, está activo y pertenece a la misma subsede
-    if (updateDto.agenteId && updateDto.agenteId !== patrulla.agenteId) {
-      const agente = await this.prisma.agente.findFirst({
-        where: {
-          id: updateDto.agenteId,
-          deletedAt: null,
-          isActive: true,
-          subsedeId: patrulla.subsedeId,
-        },
-      });
-
-      if (!agente) {
-        throw new BadRequestException(
-          `El agente con ID ${updateDto.agenteId} no existe, no está activo o no pertenece al mismo municipio`,
-        );
-      }
-    }
 
     // Si cambia la placa, verificar unicidad global
     if (updateDto.placa && updateDto.placa !== patrulla.placa) {
@@ -210,7 +179,10 @@ export class PatrullaService {
             code: true,
           },
         },
-        agente: {
+        agentes: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             nombres: true,

@@ -336,6 +336,38 @@ model TipoAgente {
 }
 
 // Agentes
+model Patrulla {
+  id        Int @id @default(autoincrement())
+  sedeId    Int
+  subsedeId Int
+
+  marca       String  @db.VarChar(50)
+  modelo      String  @db.VarChar(50)
+  placa       String  @db.VarChar(20)
+  numPatrulla String  @db.VarChar(50)
+  serie       String? @db.VarChar(100)
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede    Sede     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede  @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  agentes Agente[] // UNA patrulla TIENE VARIOS agentes
+
+  @@unique([subsedeId, numPatrulla])
+  @@unique([placa])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("patrullas")
+}
+
 model Agente {
   id        Int @id @default(autoincrement())
   sedeId    Int
@@ -353,6 +385,7 @@ model Agente {
   correo                String? @db.VarChar(100)
   contrasena            String? @db.VarChar(255)
   departamentoId        Int?
+  patrullaId            Int? // FK - Un agente está asignado a UNA patrulla
 
   // Estado y auditoría
   isActive  Boolean   @default(true)
@@ -366,51 +399,17 @@ model Agente {
   subsede      Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
   tipo         TipoAgente    @relation(fields: [tipoId], references: [id])
   departamento Departamento? @relation(fields: [departamentoId], references: [id])
-  patrullas    Patrulla[]
+  patrulla     Patrulla?     @relation(fields: [patrullaId], references: [id]) // Agente PERTENECE a una patrulla
 
   @@unique([subsedeId, numPlantilla])
   @@index([sedeId])
   @@index([subsedeId])
   @@index([tipoId])
   @@index([departamentoId])
+  @@index([patrullaId]) // Agregar índice
   @@index([isActive])
   @@index([deletedAt])
   @@map("agentes")
-}
-
-// Patrullas
-model Patrulla {
-  id        Int @id @default(autoincrement())
-  sedeId    Int
-  subsedeId Int
-  agenteId  Int
-
-  marca       String  @db.VarChar(50)
-  modelo      String  @db.VarChar(50)
-  placa       String  @db.VarChar(20)
-  numPatrulla String  @db.VarChar(50)
-  serie       String? @db.VarChar(100)
-
-  // Estado y auditoría
-  isActive  Boolean   @default(true)
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  createdBy Int?
-
-  // Relaciones
-  sede    Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
-  agente  Agente  @relation(fields: [agenteId], references: [id])
-
-  @@unique([subsedeId, numPatrulla])
-  @@unique([placa])
-  @@index([sedeId])
-  @@index([subsedeId])
-  @@index([agenteId])
-  @@index([isActive])
-  @@index([deletedAt])
-  @@map("patrullas")
 }
 
 // ============================================

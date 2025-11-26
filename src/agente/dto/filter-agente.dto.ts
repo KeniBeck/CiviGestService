@@ -32,6 +32,15 @@ export class FilterAgenteDto {
   departamentoId?: number;
 
   @ApiPropertyOptional({
+    description: 'Filtrar por ID de patrulla asignada',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  patrullaId?: number;
+
+  @ApiPropertyOptional({
     description: 'Filtrar solo agentes activos (true) o inactivos (false)',
     type: Boolean,
     example: true,

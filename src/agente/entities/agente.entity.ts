@@ -64,4 +64,7 @@ export class AgenteEntity implements Agente {
 
   @ApiPropertyOptional()
   createdBy: number | null;
+
+  @ApiPropertyOptional()
+  patrullaId: number;
 }

@@ -67,6 +67,10 @@ export class AgentePaginationService {
       whereClause.departamentoId = filters.departamentoId;
     }
 
+    if (filters?.patrullaId) {
+      whereClause.patrullaId = filters.patrullaId;
+    }
+
     if (filters?.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
@@ -86,33 +90,29 @@ export class AgentePaginationService {
       include: {
         sede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         subsede: {
           select: {
-            id: true,
             name: true,
             code: true,
           },
         },
         tipo: {
           select: {
-            id: true,
             tipo: true,
           },
         },
         departamento: {
           select: {
-            id: true,
             nombre: true,
           },
         },
-        _count: {
+        patrulla: {
           select: {
-            patrullas: true,
+            numPatrulla: true,
           },
         },
       },
