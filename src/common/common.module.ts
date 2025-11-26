@@ -5,6 +5,8 @@ import { PaginationService } from './services/pagination/pagination.service';
 import { PaginationSubsedesService } from './services/pagination/subsedes/subsedes-pagination.service';
 import { PaginationSedesService } from './services/pagination/sedes/sedes-pagination.service';
 import { PaginationUsersService } from './services/pagination/user/user-pagination.service';
+import { DepartamentoPaginationService } from './services/pagination/departamento/departamento-pagination.service';
+import { MultaPaginationService } from './services/pagination/multa/multa-pagination.service';
 
 /**
  * CommonModule - Módulo global con servicios compartidos
@@ -21,6 +23,8 @@ import { PaginationUsersService } from './services/pagination/user/user-paginati
     PaginationSubsedesService,
     PaginationSedesService,
     PaginationUsersService,
+    DepartamentoPaginationService,
+    MultaPaginationService,
   ],
   exports: [
     ValidationService,
@@ -28,6 +32,8 @@ import { PaginationUsersService } from './services/pagination/user/user-paginati
     PaginationSubsedesService,
     PaginationSedesService,
     PaginationUsersService,
+    DepartamentoPaginationService,
+    MultaPaginationService,
   ],
 })
 export class CommonModule { }
