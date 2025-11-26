@@ -3,30 +3,27 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubsedesService } from '../../sudsedes/service/sudsedes.service';
-import { UserService } from '../../user/user.service';
 import { ValidationService } from '../../common/services/validation.service';
 import { CreateSedeDto } from '../dto/create-sede.dto';
 import { UpdateSedeDto } from '../dto/update-sede.dto';
 import { AccessLevel } from '@prisma/client';
 
 /**
- * SedesService - Gestión de Sedes (Departamentos/Clientes)
+ * SedesService - Gestión de Sedes (Estados)
  * 
- * IMPORTANTE: Sede es el nivel superior en CiviGest
- * - Representa al departamento/cliente que contrata el servicio
- * - Solo SUPER_ADMIN puede crear nuevas Sedes
- * - Los usuarios pertenecen a una Sede, no a un Tenant
+ * IMPORTANTE: Sede representa el ESTADO (nivel superior jerárquico)
+ * - Super Admin (CiviGest) puede crear sedes
+ * - Las sedes contienen subsedes (municipios)
+ * - Los usuarios se crean de forma independiente
  */
 @Injectable()
 export class SedesService {
   constructor(
     private prisma: PrismaService,
     private subsedesService: SubsedesService,
-    private userService: UserService,
     private validationService: ValidationService,
   ) {}
 
@@ -37,20 +34,6 @@ export class SedesService {
   async create(createSedeDto: CreateSedeDto, userId: number) {
     // Evitar que un `id` enviado en el DTO provoque conflicto con la PK
     const { id, subsedes, ...sedeData } = createSedeDto as any;
-
-    // Buscar rol "Administrador Estatal" automáticamente
-    const adminRole = await this.prisma.role.findFirst({
-      where: {
-        name: 'Administrador Estatal',
-        isActive: true,
-      },
-    });
-
-    if (!adminRole) {
-      throw new BadRequestException(
-        'No se encontró el rol "Administrador Estatal". Debe crear este rol primero',
-      );
-    }
 
     // Verificar que no exista una sede con el mismo código
     const existingSede = await this.prisma.sede.findFirst({
@@ -97,11 +80,6 @@ export class SedesService {
       await this.validationService.validateThemeExists(sedeData.themeId);
     }
 
-    // Generar datos del usuario administrador basados en la sede
-    const adminUsername = sedeData.email.split('@')[0]; // Extraer parte antes del @
-    const adminPassword = `${sedeData.code}Admin123!`; // Código de sede + Admin123!
-    const adminDocumentNumber = `${sedeData.code}${Date.now().toString().slice(-10)}`; // Código + timestamp
-
     // Preparar datos para crear la sede
     const createData = {
       ...sedeData,
@@ -115,37 +93,13 @@ export class SedesService {
     };
 
     try {
-      // Crear la sede
+      // Crear la sede (Estado)
       const sede = await this.prisma.sede.create({
         data: createData,
       });
 
-      // Crear usuario administrador ESTATAL para la sede
-      const adminUser = await this.userService.create(
-        {
-          sedeId: sede.id,
-          subsedeId: undefined, // Usuario ESTATAL no tiene subsede
-          email: sedeData.email, // Usar email de la sede
-          username: adminUsername, // Generado del email
-          password: adminPassword, // Generado automáticamente
-          firstName: sedeData.name, // Usar nombre de la sede
-          lastName: 'Administrador', // Apellido genérico
-          phoneCountryCode: sedeData.phoneCountryCode || '+52',
-          phoneNumber: sedeData.phoneNumber, // Usar teléfono de la sede
-          address: sedeData.address, // Usar dirección de la sede
-          documentType: 'RFC', // RFC por defecto para instituciones
-          documentNumber: adminDocumentNumber, // Generado automáticamente
-          accessLevel: AccessLevel.SEDE, // Usuario ESTATAL
-          roleIds: [adminRole.id], // Rol ESTATAL
-        },
-        userId, // Super Admin que crea la sede
-        sede.id, // sedeId
-        null, // subsedeId
-        AccessLevel.SEDE, // Super Admin tiene nivel SEDE
-        ['Super Administrador'], // roles del creador
-      );
-
-      // Si hay subsedes, crearlas usando el servicio de Subsedes
+      // Si hay subsedes (municipios), crearlas usando el servicio de Subsedes
+      // Cada subsede creará su propio usuario administrador MUNICIPAL
       let createdSubsedes: any[] = [];
       if (subsedes && subsedes.length > 0) {
         for (const subsedeData of subsedes) {
@@ -164,21 +118,13 @@ export class SedesService {
         }
       }
 
-      // Retornar sede con subsedes y usuario admin creados
+      // Retornar sede con subsedes creadas
       return {
         ...sede,
         subsedes: createdSubsedes,
-        admin: {
-          id: adminUser.id,
-          email: adminUser.email,
-          username: adminUser.username,
-          firstName: adminUser.firstName,
-          lastName: adminUser.lastName,
-          temporaryPassword: adminPassword, // Retornar contraseña temporal
-        },
         _count: {
           subsedes: createdSubsedes.length,
-          users: 1,
+          users: 0,
         },
       };
     } catch (error: any) {

@@ -1,11 +1,17 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AccessLevel } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
+import { PaginationSedesService } from '../../common/services/pagination/sedes/sedes-pagination.service';
+import { FilterSedesDto } from '../dto/filter-sedes.dto';
+import { PaginatedResponse } from '../../common/services/interface/paginate-operation';
 
 @Injectable()
 export class FinderSedesService {
 
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private paginationSedesService: PaginationSedesService,
+    ) { }
 
   /**
     * Listar todas las sedes
@@ -167,5 +173,89 @@ export class FinderSedesService {
 
         throw new ForbiddenException('Acceso denegado');
     }
+
+  /**
+   * Listar sedes con paginación y filtros
+   * Aplica permisos según el nivel de acceso del usuario
+   */
+  async findAllPaginated(
+    page: number,
+    limit: number,
+    filters: FilterSedesDto,
+    activatePaginated: boolean,
+    userSedeId: number,
+    accessLevel: AccessLevel,
+    userId: number,
+    roles?: string[],
+    sedeAccessIds?: number[],
+  ): Promise<PaginatedResponse<any>> {
+    const isSuperAdmin = roles?.includes('Super Administrador');
+
+    // Construir filtros base según nivel de acceso
+    const baseFilters: FilterSedesDto = { ...filters };
+
+    // Llamar al servicio de paginación
+    const result = await this.paginationSedesService.paginateSedes({
+      prisma: this.prisma,
+      page,
+      limit,
+      filters: baseFilters,
+      activatePaginated,
+    });
+
+    // Si NO es Super Admin, filtrar sedes accesibles
+    if (!isSuperAdmin) {
+      // Usuario con acceso SEDE: solo ve su sede y las que tenga acceso explícito
+      if (accessLevel === AccessLevel.SEDE) {
+        const accessibleSedeIds = [
+          userSedeId, // Su propia sede
+          ...(sedeAccessIds || []), // Accesos explícitos
+        ];
+
+        // Filtrar items de la página actual
+        const filteredItems = result.items.filter((item: any) =>
+          accessibleSedeIds.includes(item.id),
+        );
+
+        // Filtrar nextPages
+        const filteredNextPages = result.nextPages.map(page => ({
+          ...page,
+          items: page.items.filter((item: any) =>
+            accessibleSedeIds.includes(item.id),
+          ),
+        }));
+
+        return {
+          ...result,
+          items: filteredItems,
+          nextPages: filteredNextPages,
+        };
+      }
+
+      // Usuario con acceso SUBSEDE: solo ve su propia sede
+      if (accessLevel === AccessLevel.SUBSEDE) {
+        // Filtrar items de la página actual
+        const filteredItems = result.items.filter((item: any) =>
+          item.id === userSedeId,
+        );
+
+        // Filtrar nextPages
+        const filteredNextPages = result.nextPages.map(page => ({
+          ...page,
+          items: page.items.filter((item: any) =>
+            item.id === userSedeId,
+          ),
+        }));
+
+        return {
+          ...result,
+          items: filteredItems,
+          nextPages: filteredNextPages,
+        };
+      }
+    }
+
+    return result;
+  }
 
 }
