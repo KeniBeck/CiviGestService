@@ -62,6 +62,9 @@ model Sede {
   customThemes   Theme[]          @relation(name: "SedeCustomThemes")
   multas         Multa[]
   departamentos  Departamento[]
+  agentes        Agente[]
+  patrullas      Patrulla[]
+  tiposAgentes   TipoAgente[]
 
   @@index([code])
   @@index([isActive])
@@ -89,6 +92,9 @@ model Subsede {
   userSubsedeAccess UserSubsedeAccess[] // Acceso explícito de usuarios
   multas            Multa[]
   departamentos     Departamento[]
+  agentes           Agente[]
+  patrullas         Patrulla[]
+  tiposAgentes      TipoAgente[]
 
   @@unique([sedeId, code])
   @@index([sedeId])
@@ -266,9 +272,9 @@ model Multa {
   subsedeId Int // Municipio que crea la multa
 
   // Identificación
-  nombre       String  @db.VarChar(200)
-  codigo       String  @db.VarChar(50) // Código único dentro del municipio
-  descripcion  String? @db.Text
+  nombre      String  @db.VarChar(200)
+  codigo      String  @db.VarChar(50) // Código único dentro del municipio
+  descripcion String? @db.Text
 
   // Montos (usar UNO de estos métodos)
   costo       Decimal? @db.Decimal(10, 2) // Monto fijo en pesos
@@ -298,6 +304,116 @@ model Multa {
 }
 
 // ============================================
+// MÓDULO DE AGENTES Y PATRULLAS
+// ============================================
+
+// Tipos de Agentes (Catálogo)
+model TipoAgente {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio que crea el tipo
+
+  tipo String @db.VarChar(100)
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede    Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  agentes Agente[]
+
+  @@unique([subsedeId, tipo]) // Tipo único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("tipos_agentes")
+}
+
+// Agentes
+model Agente {
+  id        Int @id @default(autoincrement())
+  sedeId    Int
+  subsedeId Int
+
+  nombres               String  @db.VarChar(100)
+  apellidoPaterno       String  @db.VarChar(100)
+  apellidoMaterno       String  @db.VarChar(100)
+  tipoId                Int
+  cargo                 String  @db.VarChar(100)
+  numPlantilla          String  @db.VarChar(50)
+  numEmpleadoBiometrico String? @db.VarChar(50)
+  foto                  String? @db.Text
+  whatsapp              String? @db.VarChar(20)
+  correo                String? @db.VarChar(100)
+  contrasena            String? @db.VarChar(255)
+  departamentoId        Int?
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede         Sede          @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede      Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  tipo         TipoAgente    @relation(fields: [tipoId], references: [id])
+  departamento Departamento? @relation(fields: [departamentoId], references: [id])
+  patrullas    Patrulla[]
+
+  @@unique([subsedeId, numPlantilla])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([tipoId])
+  @@index([departamentoId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("agentes")
+}
+
+// Patrullas
+model Patrulla {
+  id        Int @id @default(autoincrement())
+  sedeId    Int
+  subsedeId Int
+  agenteId  Int
+
+  marca       String  @db.VarChar(50)
+  modelo      String  @db.VarChar(50)
+  placa       String  @db.VarChar(20)
+  numPatrulla String  @db.VarChar(50)
+  serie       String? @db.VarChar(100)
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede    Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  agente  Agente  @relation(fields: [agenteId], references: [id])
+
+  @@unique([subsedeId, numPatrulla])
+  @@unique([placa])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([agenteId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("patrullas")
+}
+
+// ============================================
 // CATÁLOGOS
 // ============================================
 
@@ -317,9 +433,10 @@ model Departamento {
   createdBy Int?
 
   // Relaciones
-  sede    Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  sede    Sede     @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede  @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
   multas  Multa[] // Relación con multas
+  agentes Agente[]
 
   @@unique([subsedeId, nombre]) // Nombre único por municipio
   @@index([sedeId])
