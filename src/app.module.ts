@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { SedesModule } from './sedes/sedes.module';
 import { SubsedesModule } from './sudsedes/sudsedes.module';
 import { UserModule } from './user/user.module';
+import { MultaModule } from './multa/multa.module';
+import { DepartamentoModule } from './departamento/departamento.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { UserModule } from './user/user.module';
     SedesModule,
     SubsedesModule,
     UserModule,
+    MultaModule,
+    DepartamentoModule,
   ]
 })
 export class AppModule {}

@@ -60,6 +60,8 @@ model Sede {
   users          User[]
   userSedeAccess UserSedeAccess[] // Acceso explícito de usuarios
   customThemes   Theme[]          @relation(name: "SedeCustomThemes")
+  multas         Multa[]
+  departamentos  Departamento[]
 
   @@index([code])
   @@index([isActive])
@@ -73,7 +75,7 @@ model Subsede {
   sedeId Int
   name   String @db.VarChar(100) // Nombre del municipio
   code   String @db.VarChar(20) // Código del municipio (único dentro de la sede)
-  
+
   // Estado y auditoría
   isActive  Boolean   @default(true)
   deletedAt DateTime? // Soft delete
@@ -85,6 +87,8 @@ model Subsede {
   sede              Sede                @relation(fields: [sedeId], references: [id], onDelete: Cascade)
   users             User[]
   userSubsedeAccess UserSubsedeAccess[] // Acceso explícito de usuarios
+  multas            Multa[]
+  departamentos     Departamento[]
 
   @@unique([sedeId, code])
   @@index([sedeId])
@@ -250,6 +254,79 @@ model User {
   @@index([deletedAt])
   @@index([accessLevel])
   @@map("users")
+}
+
+// ============================================
+// MÓDULO DE MULTAS (CATÁLOGO)
+// ============================================
+
+model Multa {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Sede (Estado)
+  subsedeId Int // Municipio que crea la multa
+
+  // Identificación
+  nombre       String  @db.VarChar(200)
+  codigo       String  @db.VarChar(50) // Código único dentro del municipio
+  descripcion  String? @db.Text
+
+  // Montos (usar UNO de estos métodos)
+  costo       Decimal? @db.Decimal(10, 2) // Monto fijo en pesos
+  numUMAs     Decimal? @db.Decimal(10, 2) // Cantidad de UMAs
+  numSalarios Decimal? @db.Decimal(10, 2) // Cantidad de salarios mínimos
+  recargo     Decimal? @db.Decimal(10, 2) // Recargo en pesos si aplica
+
+  // Estado
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede           Sede          @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede        Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  departamento   Departamento? @relation(fields: [departamentoId], references: [id])
+  departamentoId Int?
+
+  @@unique([subsedeId, codigo]) // Código único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("multas")
+}
+
+// ============================================
+// CATÁLOGOS
+// ============================================
+
+model Departamento {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio que crea el departamento
+
+  nombre      String  @db.VarChar(100)
+  descripcion String? @db.VarChar(255)
+
+  // Estado
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede    Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  multas  Multa[] // Relación con multas
+
+  @@unique([subsedeId, nombre]) // Nombre único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("departamentos")
 }
 
 // ============================================
