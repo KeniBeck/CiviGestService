@@ -11,6 +11,7 @@ import { TipoAgentePaginationService } from './services/pagination/tipo-agente/t
 import { AgentePaginationService } from './services/pagination/agente/agente-pagination.service';
 import { PatrullaPaginationService } from './services/pagination/patrulla/patrulla-pagination.service';
 import { ConfiguracionPaginationService } from './services/pagination/configuracion/configuracion-pagination.service';
+import { ThemePaginationService } from './services/pagination/theme/theme-pagination.service';
 
 /**
  * CommonModule - Módulo global con servicios compartidos
@@ -33,6 +34,7 @@ import { ConfiguracionPaginationService } from './services/pagination/configurac
     AgentePaginationService,
     PatrullaPaginationService,
     ConfiguracionPaginationService,
+    ThemePaginationService,
   ],
   exports: [
     ValidationService,
@@ -46,6 +48,7 @@ import { ConfiguracionPaginationService } from './services/pagination/configurac
     AgentePaginationService,
     PatrullaPaginationService,
     ConfiguracionPaginationService,
+    ThemePaginationService,
   ],
 })
 export class CommonModule { }

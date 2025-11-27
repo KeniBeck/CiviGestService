@@ -12,6 +12,7 @@ import { TipoAgenteModule } from './tipo-agente/tipo-agente.module';
 import { AgenteModule } from './agente/agente.module';
 import { PatrullaModule } from './patrulla/patrulla.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
+import { ThemeModule } from './theme/theme.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ConfiguracionModule } from './configuracion/configuracion.module';
     AgenteModule,
     PatrullaModule,
     ConfiguracionModule,
+    ThemeModule,
   ]
 })
 export class AppModule {}
