@@ -33,6 +33,12 @@ export class FinderSedesService {
           deletedAt: null,
         },
         include: {
+          configuraciones: {
+            select: {
+              nombreCliente: true,
+              logo: true,
+            },
+          },
           _count: {
             select: {
               subsedes: true,
@@ -60,6 +66,12 @@ export class FinderSedesService {
           deletedAt: null,
         },
         include: {
+          configuraciones: {
+            select: {
+              nombreCliente: true,
+              logo: true,
+            },
+          },
           _count: {
             select: {
               subsedes: true,
@@ -81,6 +93,12 @@ export class FinderSedesService {
           deletedAt: null,
         },
         include: {
+          configuraciones: {
+            select: {
+              nombreCliente: true,
+              logo: true,
+            },
+          },
           _count: {
             select: {
               subsedes: true,
@@ -124,7 +142,9 @@ export class FinderSedesService {
                     orderBy: {
                         name: 'asc',
                     },
+                    take: 10,
                 },
+                configuraciones: true,
                 _count: {
                     select: {
                         users: true,

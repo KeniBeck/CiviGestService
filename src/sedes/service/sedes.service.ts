@@ -49,20 +49,6 @@ export class SedesService {
       );
     }
 
-    // Verificar que el email no esté en uso
-    const existingEmail = await this.prisma.sede.findFirst({
-      where: {
-        email: sedeData.email,
-        deletedAt: null,
-      },
-    });
-
-    if (existingEmail) {
-      throw new ConflictException(
-        `Ya existe una sede con el email ${sedeData.email}`,
-      );
-    }
-
     // Si hay subsedes, validar códigos únicos
     if (subsedes && subsedes.length > 0) {
       const codes = subsedes.map((s: any) => s.code);
@@ -75,27 +61,26 @@ export class SedesService {
       }
     }
 
-    // Validar que el tema existe (si se proporciona)
-    if (sedeData.themeId) {
-      await this.validationService.validateThemeExists(sedeData.themeId);
-    }
-
-    // Preparar datos para crear la sede
-    const createData = {
-      ...sedeData,
-      createdBy: userId,
-      latitude: sedeData.latitude
-        ? parseFloat(sedeData.latitude)
-        : null,
-      longitude: sedeData.longitude
-        ? parseFloat(sedeData.longitude)
-        : null,
-    };
-
     try {
       // Crear la sede (Estado)
       const sede = await this.prisma.sede.create({
-        data: createData,
+        data: {
+          ...sedeData,
+          createdBy: userId,
+        },
+        include: {
+          configuraciones: {
+            select: {
+              nombreCliente: true,
+              logo: true,
+            },
+          },
+          _count: {
+            select: {
+              subsedes: true,
+            },
+          },
+        },
       });
 
       // Si hay subsedes (municipios), crearlas usando el servicio de Subsedes
@@ -203,48 +188,19 @@ export class SedesService {
       }
     }
 
-    // Si se cambia el email, verificar que no esté en uso
-    if (updateSedeDto.email && updateSedeDto.email !== sede.email) {
-      const existingEmail = await this.prisma.sede.findFirst({
-        where: {
-          email: updateSedeDto.email,
-          id: { not: id },
-          deletedAt: null,
-        },
-      });
-
-      if (existingEmail) {
-        throw new ConflictException(
-          `Ya existe una sede con el email ${updateSedeDto.email}`,
-        );
-      }
-    }
-
-    // Validar que el tema existe si se está actualizando
-    if (updateSedeDto.themeId !== undefined) {
-      if (updateSedeDto.themeId === null) {
-        // Se está removiendo el tema, permitido
-      } else {
-        // Validar que el tema existe y puede ser usado por esta sede
-        await this.validationService.validateThemeExists(updateSedeDto.themeId, id);
-      }
-    }
-
     // Actualizar la sede (excluir subsedes del update)
     const { subsedes: _, ...dataToUpdate } = updateSedeDto as any;
     
     return this.prisma.sede.update({
       where: { id },
-      data: {
-        ...dataToUpdate,
-        latitude: updateSedeDto.latitude
-          ? parseFloat(updateSedeDto.latitude)
-          : undefined,
-        longitude: updateSedeDto.longitude
-          ? parseFloat(updateSedeDto.longitude)
-          : undefined,
-      },
+      data: dataToUpdate,
       include: {
+        configuraciones: {
+          select: {
+            nombreCliente: true,
+            logo: true,
+          },
+        },
         _count: {
           select: {
             subsedes: true,

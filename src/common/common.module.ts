@@ -10,6 +10,7 @@ import { MultaPaginationService } from './services/pagination/multa/multa-pagina
 import { TipoAgentePaginationService } from './services/pagination/tipo-agente/tipo-agente-pagination.service';
 import { AgentePaginationService } from './services/pagination/agente/agente-pagination.service';
 import { PatrullaPaginationService } from './services/pagination/patrulla/patrulla-pagination.service';
+import { ConfiguracionPaginationService } from './services/pagination/configuracion/configuracion-pagination.service';
 
 /**
  * CommonModule - Módulo global con servicios compartidos
@@ -31,6 +32,7 @@ import { PatrullaPaginationService } from './services/pagination/patrulla/patrul
     TipoAgentePaginationService,
     AgentePaginationService,
     PatrullaPaginationService,
+    ConfiguracionPaginationService,
   ],
   exports: [
     ValidationService,
@@ -43,6 +45,7 @@ import { PatrullaPaginationService } from './services/pagination/patrulla/patrul
     TipoAgentePaginationService,
     AgentePaginationService,
     PatrullaPaginationService,
+    ConfiguracionPaginationService,
   ],
 })
 export class CommonModule { }

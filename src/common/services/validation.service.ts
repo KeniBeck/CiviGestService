@@ -289,20 +289,15 @@ export class ValidationService {
     }
 
     /**
-     * Validar que un tema existe y está disponible
-     * Un tema puede ser usado si:
-     * - Es un tema por defecto (isDefault=true)
-     * - Es un tema personalizado que pertenece a la sede especificada
+     * Validar que un tema existe
+     * Valida que el tema exista en la base de datos
      */
-    async validateThemeExists(themeId: number, sedeId?: number): Promise<void> {
+    async validateThemeExists(themeId: number): Promise<void> {
         const theme = await this.prisma.theme.findUnique({
             where: { id: themeId },
             select: {
                 id: true,
                 name: true,
-                isDefault: true,
-                isCustom: true,
-                sedeId: true,
             },
         });
 
@@ -310,26 +305,6 @@ export class ValidationService {
             throw new BadRequestException(
                 `El tema con ID ${themeId} no existe`,
             );
-        }
-
-        // Si el tema es por defecto, cualquiera puede usarlo
-        if (theme.isDefault) {
-            return;
-        }
-
-        // Si el tema es personalizado, debe pertenecer a la sede
-        if (theme.isCustom && theme.sedeId) {
-            if (!sedeId) {
-                throw new BadRequestException(
-                    `El tema "${theme.name}" es personalizado y requiere especificar una sede`,
-                );
-            }
-
-            if (theme.sedeId !== sedeId) {
-                throw new BadRequestException(
-                    `El tema "${theme.name}" pertenece a otra sede y no puede ser usado`,
-                );
-            }
         }
     }
 }

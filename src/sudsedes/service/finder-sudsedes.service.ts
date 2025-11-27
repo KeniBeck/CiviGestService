@@ -45,11 +45,12 @@ export class FinderSubsedesService {
           ...(sedeId && { sedeId }), // Filtrar por sede si se especifica
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -72,11 +73,12 @@ export class FinderSubsedesService {
           deletedAt: null,
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -108,11 +110,12 @@ export class FinderSubsedesService {
           deletedAt: null,
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -149,12 +152,10 @@ export class FinderSubsedesService {
         deletedAt: null,
       },
       include: {
-        sede: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            isActive: true,
+        sede: true,
+        configuracion: {
+          include: {
+            theme: true,
           },
         },
         _count: {
