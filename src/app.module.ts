@@ -13,6 +13,8 @@ import { AgenteModule } from './agente/agente.module';
 import { PatrullaModule } from './patrulla/patrulla.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { ThemeModule } from './theme/theme.module';
+import { TipoPermisoModule } from './tipo-permiso/tipo-permiso.module';
+import { PermisoModule } from './permiso/permiso.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ThemeModule } from './theme/theme.module';
     PatrullaModule,
     ConfiguracionModule,
     ThemeModule,
+    TipoPermisoModule,
+    PermisoModule,
   ]
 })
 export class AppModule {}

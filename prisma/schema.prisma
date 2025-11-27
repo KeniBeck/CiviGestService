@@ -100,6 +100,8 @@ model Sede {
   patrullas       Patrulla[]
   tiposAgentes    TipoAgente[]
   configuraciones Configuracion[]
+  tipoPermisos    TipoPermiso[]
+  permisos        Permiso[]
 
   @@index([code])
   @@index([isActive])
@@ -131,6 +133,8 @@ model Subsede {
   patrullas         Patrulla[]
   tiposAgentes      TipoAgente[]
   configuracion     Configuracion?
+  tipoPermisos      TipoPermiso[]
+  permisos          Permiso[]
 
   @@unique([sedeId, code])
   @@index([sedeId])
@@ -333,6 +337,136 @@ model Multa {
   @@index([isActive])
   @@index([deletedAt])
   @@map("multas")
+}
+
+// ============================================
+// MÓDULO DE PERMISOS CIUDADANOS
+// ============================================
+
+// Tipos de Permisos (Catálogo/Plantilla por municipio)
+model TipoPermiso {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio que crea el tipo
+
+  nombre      String  @db.VarChar(100) // "Construcción", "Venta Ambulante"
+  descripcion String? @db.Text
+
+  // Configuración de campos personalizados (JSONB)
+  camposPersonalizados Json? // Define qué campos adicionales tiene este tipo
+
+  // Costos base (pueden ser sobreescritos por el permiso individual)
+  costoBase       Decimal? @db.Decimal(10, 2)
+  numUMAsBase     Decimal? @db.Decimal(10, 2)
+  numSalariosBase Decimal? @db.Decimal(10, 2)
+
+  // Vigencia por defecto (en días)
+  vigenciaDefecto Int @default(365) // 1 año por defecto
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede     Sede      @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede  Subsede   @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  permisos Permiso[]
+
+  @@unique([subsedeId, nombre]) // Nombre único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("tipos_permisos")
+}
+
+// Permisos Ciudadanos (Solicitudes/Instancias reales)
+model Permiso {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio
+
+  tipoPermisoId Int // FK a TipoPermiso
+
+  // Folio único
+  folio       String  @db.VarChar(50) // Folio único por municipio
+  descripcion String? @db.Text
+
+  // Datos del ciudadano solicitante
+  nombreCiudadano    String  @db.VarChar(200)
+  documentoCiudadano String  @db.VarChar(50) // CURP, RFC, INE, etc.
+  domicilioCiudadano String? @db.VarChar(255)
+  telefonoCiudadano  String? @db.VarChar(20)
+  emailCiudadano     String? @db.VarChar(100)
+
+  // Costos aplicados (copiados del tipo o personalizados al crear)
+  costo       Decimal? @db.Decimal(10, 2)
+  numSalarios Decimal? @db.Decimal(10, 2)
+  numUMAs     Decimal? @db.Decimal(10, 2)
+
+  // Vigencia
+  fechaEmision     DateTime
+  fechaVencimiento DateTime
+  vigenciaDias     Int // Calculado: fechaVencimiento - fechaEmision
+
+  // QR para validación del permiso
+  qr String? @db.Text
+
+  // Estado del permiso
+  estatus PermisoEstatus @default(SOLICITADO)
+
+  // Documentos adjuntos (array de URLs o paths)
+  documentosAdjuntos Json? // [{ "nombre": "Plano.pdf", "url": "..." }]
+
+  // CAMPOS PERSONALIZADOS (JSONB DINÁMICO)
+  camposAdicionales Json? // Aquí van los valores de los campos específicos del tipo
+
+  // Fechas importantes del flujo
+  fechaSolicitud  DateTime  @default(now())
+  fechaAprobacion DateTime?
+  fechaRechazo    DateTime?
+
+  // Observaciones y motivos
+  observaciones String? @db.Text
+  motivoRechazo String? @db.Text
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede        Sede        @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede     Subsede     @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  tipoPermiso TipoPermiso @relation(fields: [tipoPermisoId], references: [id], onDelete: Restrict)
+
+  @@unique([subsedeId, folio]) // Folio único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([tipoPermisoId])
+  @@index([documentoCiudadano]) // Búsqueda por documento
+  @@index([estatus]) // Filtrar por estado
+  @@index([fechaVencimiento]) // Búsqueda de vencidos
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("permisos")
+}
+
+// Estados del permiso
+enum PermisoEstatus {
+  SOLICITADO // Recién solicitado
+  EN_REVISION // En proceso de revisión
+  APROBADO // Aprobado y vigente
+  RECHAZADO // Rechazado por autoridad
+  VENCIDO // Ya venció la vigencia
+  CANCELADO // Cancelado por autoridad o ciudadano
+
+  @@map("permiso_estatus")
 }
 
 // ============================================
