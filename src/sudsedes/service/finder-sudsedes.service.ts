@@ -5,6 +5,9 @@ import {
 } from '@nestjs/common';
 import { AccessLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaginationSubsedesService } from '../../common/services/pagination/subsedes/subsedes-pagination.service';
+import { FilterSubsedesDto } from '../dto/filter-subsedes.dto';
+import { PaginatedResponse } from '../../common/services/interface/paginate-operation';
 
 /**
  * FinderSubsedesService - Servicio de búsqueda de Subsedes
@@ -12,7 +15,10 @@ import { PrismaService } from '../../prisma/prisma.service';
  */
 @Injectable()
 export class FinderSubsedesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private paginationSubsedesService: PaginationSubsedesService,
+  ) {}
 
   /**
    * Listar subsedes según nivel de acceso
@@ -39,11 +45,12 @@ export class FinderSubsedesService {
           ...(sedeId && { sedeId }), // Filtrar por sede si se especifica
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -66,11 +73,12 @@ export class FinderSubsedesService {
           deletedAt: null,
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -102,11 +110,12 @@ export class FinderSubsedesService {
           deletedAt: null,
         },
         include: {
-          sede: {
+          sede: true,
+          configuracion: {
             select: {
-              id: true,
-              name: true,
-              code: true,
+              nombreCliente: true,
+              logo: true,
+              titular: true,
             },
           },
           _count: {
@@ -143,12 +152,10 @@ export class FinderSubsedesService {
         deletedAt: null,
       },
       include: {
-        sede: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            isActive: true,
+        sede: true,
+        configuracion: {
+          include: {
+            theme: true,
           },
         },
         _count: {
@@ -241,5 +248,90 @@ export class FinderSubsedesService {
         name: 'asc',
       },
     });
+  }
+
+  /**
+   * Listar subsedes con paginación y filtros
+   * Aplica permisos según el nivel de acceso del usuario
+   */
+  async findAllPaginated(
+    page: number,
+    limit: number,
+    filters: FilterSubsedesDto,
+    activatePaginated: boolean,
+    userSedeId: number,
+    userSubsedeId: number | null,
+    accessLevel: AccessLevel,
+    userId: number,
+    roles?: string[],
+    subsedeAccessIds?: number[],
+  ): Promise<PaginatedResponse<any>> {
+    const isSuperAdmin = roles?.includes('Super Administrador');
+
+    // Construir filtros base según nivel de acceso
+    const baseFilters: FilterSubsedesDto = { ...filters };
+
+    // Usuario con acceso SEDE: solo ve subsedes de su sede
+    if (accessLevel === AccessLevel.SEDE && !isSuperAdmin) {
+      baseFilters.sedeId = userSedeId;
+    }
+
+    // Usuario con acceso SUBSEDE: solo ve sus subsedes accesibles
+    if (accessLevel === AccessLevel.SUBSEDE && !isSuperAdmin) {
+      baseFilters.sedeId = userSedeId;
+      
+      // Aquí aplicaremos un filtro adicional después de obtener los resultados
+      // ya que Prisma no soporta directamente "id IN" con paginación
+    }
+
+    // Llamar al servicio de paginación
+    const result = await this.paginationSubsedesService.paginateSubsedes({
+      prisma: this.prisma,
+      page,
+      limit,
+      filters: baseFilters,
+      activatePaginated,
+    });
+
+    // Si es usuario SUBSEDE, filtrar solo las subsedes accesibles
+    if (accessLevel === AccessLevel.SUBSEDE && !isSuperAdmin) {
+      const accessibleSubsedeIds = [
+        ...(userSubsedeId ? [userSubsedeId] : []),
+        ...(subsedeAccessIds || []),
+      ];
+
+      if (accessibleSubsedeIds.length === 0) {
+        return {
+          ...result,
+          items: [],
+          pagination: {
+            ...result.pagination,
+            totalItems: 0,
+            totalPages: 0,
+          },
+        };
+      }
+
+      // Filtrar items de la página actual
+      const filteredItems = result.items.filter((item: any) =>
+        accessibleSubsedeIds.includes(item.id),
+      );
+
+      // Filtrar nextPages
+      const filteredNextPages = result.nextPages.map(page => ({
+        ...page,
+        items: page.items.filter((item: any) =>
+          accessibleSubsedeIds.includes(item.id),
+        ),
+      }));
+
+      return {
+        ...result,
+        items: filteredItems,
+        nextPages: filteredNextPages,
+      };
+    }
+
+    return result;
   }
 }

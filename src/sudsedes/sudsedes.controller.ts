@@ -9,6 +9,8 @@ import {
   UseGuards,
   ParseIntPipe,
   Query,
+  ValidationPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,6 +29,9 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { RequestUser } from '../auth/interfaces/jwt-payload.interface';
+import { PaginatedSubsedesQueryDto } from './dto/paginated-subsedes-query.dto';
+import { FilterSubsedesDto } from './dto/filter-subsedes.dto';
+import { BooleanTransformPipe } from '../common/pipes/boolean-transform.pipe';
 
 @ApiTags('Subsedes')
 @ApiBearerAuth()
@@ -71,6 +76,73 @@ export class SubsedesController {
       user.accessLevel,
       user.roles,
     );
+  }
+
+  /**
+   * Listar subsedes con paginación y filtros
+   */
+  @Get('paginated')
+  @ApiOperation({
+    summary: 'Obtener subsedes con paginación y filtros opcionales',
+  })
+  @ApiQuery({
+    name: 'activatePaginated',
+    required: false,
+    type: Boolean,
+    description:
+      'Si es false, devuelve todos los registros sin paginación. Por defecto: true',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de subsedes',
+  })
+  async findPaginated(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    queryParams: PaginatedSubsedesQueryDto,
+    @Query('activatePaginated', new BooleanTransformPipe(true))
+    activatePaginated: boolean,
+    @CurrentUser() user: RequestUser,
+  ) {
+    try {
+      // Construir el objeto de filtros
+      const filters: FilterSubsedesDto = {};
+
+      if (queryParams.sedeId) {
+        filters.sedeId = queryParams.sedeId;
+      }
+
+      if (queryParams.isActive !== undefined) {
+        filters.isActive = queryParams.isActive;
+      }
+
+      if (queryParams.search && queryParams.search.trim() !== '') {
+        filters.search = queryParams.search.trim();
+      }
+
+      // Si activatePaginated es falso, establecerlo en el objeto filters
+      if (activatePaginated === false) {
+        filters.activatePaginated = false;
+      }
+
+      // Obtener los datos paginados
+      return await this.finderSubsedesService.findAllPaginated(
+        queryParams.page || 1,
+        queryParams.limit || 10,
+        filters,
+        activatePaginated,
+        user.sedeId,
+        user.subsedeId,
+        user.accessLevel,
+        user.userId,
+        user.roles,
+        user.subsedeAccessIds,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new Error(`Error processing paginated request: ${error.message}`);
+    }
   }
 
   /**

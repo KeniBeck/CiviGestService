@@ -9,16 +9,22 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  ValidationPipe,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { FinderUserService } from './service/finder-user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginatedUsersQueryDto } from './dto/paginated-users-query.dto';
+import { FilterUsersDto } from './dto/filter-users.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Permissions } from '../auth/decorators/permissions.decorator';
+import { BooleanTransformPipe } from '../common/pipes/boolean-transform.pipe';
 import type { Policy } from '../auth/decorators/permissions.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
@@ -61,6 +67,79 @@ export class UserController {
       user.accessLevel,
       user.roles,
     );
+  }
+
+  /**
+   * GET /users/paginated - Listar usuarios con paginación
+   * Permisos: Super Admin (todos), SEDE (su sede), SUBSEDE (su subsede)
+   * Filtros opcionales: sedeId, subsedeId, isActive, search
+   */
+  @Get('paginated')
+  @Permissions([
+    { resource: 'users', action: 'read' },
+  ] as Policy[])
+  @ApiOperation({
+    summary: 'Obtener usuarios con paginación y filtros opcionales',
+  })
+  @ApiQuery({
+    name: 'activatePaginated',
+    required: false,
+    type: Boolean,
+    description:
+      'Si es false, devuelve todos los registros sin paginación. Por defecto: true',
+  })
+  async findPaginated(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    queryParams: PaginatedUsersQueryDto,
+    @Query('activatePaginated', new BooleanTransformPipe(true))
+    activatePaginated: boolean,
+    @CurrentUser() user: RequestUser,
+  ) {
+    try {
+      // Construir el objeto de filtros
+      const filters: FilterUsersDto = {};
+
+      if (queryParams.sedeId) {
+        filters.sedeId = queryParams.sedeId;
+      }
+
+      if (queryParams.subsedeId) {
+        filters.subsedeId = queryParams.subsedeId;
+      }
+
+      if (queryParams.isActive !== undefined) {
+        filters.isActive = queryParams.isActive;
+      }
+
+      if (queryParams.search && queryParams.search.trim() !== '') {
+        filters.search = queryParams.search.trim();
+      }
+
+      // Si activatePaginated es falso, establecerlo en el objeto filters
+      if (activatePaginated === false) {
+        filters.activatePaginated = false;
+      }
+
+      // Obtener los datos paginados
+      return await this.finderUserService.findAllPaginated(
+        queryParams.page || 1,
+        queryParams.limit || 10,
+        filters,
+        activatePaginated,
+        user.sedeId,
+        user.subsedeId,
+        user.accessLevel,
+        user.userId,
+        user.roles,
+        user.sedeAccessIds,
+        user.subsedeAccessIds,
+      );
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new Error(`Error processing paginated request: ${error.message}`);
+    }
   }
 
   /**

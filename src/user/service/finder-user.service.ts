@@ -5,6 +5,9 @@ import {
 } from '@nestjs/common';
 import { AccessLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaginationUsersService } from '../../common/services/pagination/user/user-pagination.service';
+import { FilterUsersDto } from '../dto/filter-users.dto';
+import { PaginatedResponse } from '../../common/services/interface/paginate-operation';
 
 /**
  * FinderUserService - Servicio de búsqueda de usuarios
@@ -17,7 +20,10 @@ import { PrismaService } from '../../prisma/prisma.service';
  */
 @Injectable()
 export class FinderUserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private paginationUsersService: PaginationUsersService,
+  ) {}
 
   /**
    * Listar usuarios según nivel de acceso
@@ -405,6 +411,67 @@ export class FinderUserService {
         { isActive: 'desc' },
         { lastName: 'asc' },
       ],
+    });
+  }
+
+  /**
+   * Listar usuarios con paginación y filtros
+   * Aplica las mismas restricciones de acceso que findAll
+   */
+  async findAllPaginated(
+    page: number,
+    limit: number,
+    filters: FilterUsersDto,
+    activatePaginated: boolean,
+    userSedeId: number,
+    userSubsedeId: number | null,
+    accessLevel: AccessLevel,
+    userId: number,
+    roles: string[],
+    sedeAccessIds: number[],
+    subsedeAccessIds: number[],
+  ): Promise<PaginatedResponse<any>> {
+    const isSuperAdmin = roles.includes('Super Administrador');
+
+    // Validar acceso a filtros específicos (misma lógica que findAll)
+    if (!isSuperAdmin) {
+      if (filters.sedeId) {
+        if (accessLevel === AccessLevel.SEDE) {
+          const accessibleSedeIds = [userSedeId, ...sedeAccessIds];
+          if (!accessibleSedeIds.includes(filters.sedeId)) {
+            throw new ForbiddenException('No tienes acceso a usuarios de esa sede');
+          }
+        } else if (accessLevel === AccessLevel.SUBSEDE) {
+          throw new ForbiddenException('No tienes permisos para filtrar por sede');
+        }
+      }
+
+      if (filters.subsedeId) {
+        if (accessLevel === AccessLevel.SUBSEDE) {
+          const accessibleSubsedeIds = [
+            ...(userSubsedeId ? [userSubsedeId] : []),
+            ...subsedeAccessIds,
+          ];
+          if (!accessibleSubsedeIds.includes(filters.subsedeId)) {
+            throw new ForbiddenException('No tienes acceso a usuarios de esa subsede');
+          }
+        }
+      }
+    }
+
+    // Llamar al servicio de paginación
+    return await this.paginationUsersService.paginateUsers({
+      prisma: this.prisma,
+      page,
+      limit,
+      filters,
+      activatePaginated,
+      userSedeId,
+      userSubsedeId,
+      accessLevel,
+      sedeAccessIds,
+      subsedeAccessIds,
+      isSuperAdmin,
     });
   }
 }

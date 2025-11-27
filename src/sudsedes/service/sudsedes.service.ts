@@ -12,14 +12,16 @@ import { AccessLevel } from '@prisma/client';
 /**
  * SubsedesService - Gestión de Subsedes (Municipios/Oficinas)
  * 
- * IMPORTANTE: Subsede pertenece a una Sede
+ * IMPORTANTE: Subsede representa el MUNICIPIO (cliente principal)
  * - Super Admin puede crear subsedes en cualquier sede
  * - Usuarios SEDE pueden crear subsedes en su propia sede
- * - Usuarios SUBSEDE no pueden crear subsedes
+ * - Los usuarios se crean de forma independiente usando el módulo de usuarios
  */
 @Injectable()
 export class SubsedesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+  ) {}
 
   /**
    * Crear nueva subsede (municipio/oficina)
@@ -82,14 +84,13 @@ export class SubsedesService {
       );
     }
 
-    // Preparar datos para crear la subsede
-    const createData = {
-      ...subsedeData
-    };
-
     try {
-      return await this.prisma.subsede.create({
-        data: createData,
+      // Crear la subsede (Municipio)
+      const subsede = await this.prisma.subsede.create({
+        data: {
+          ...subsedeData,
+          createdBy: userId,
+        },
         include: {
           sede: {
             select: {
@@ -105,6 +106,8 @@ export class SubsedesService {
           },
         },
       });
+
+      return subsede;
     } catch (error: any) {
       if (error?.code === 'P2002') {
         const field = error?.meta?.target?.[0] || 'campo único';
