@@ -8,6 +8,11 @@ import { SubsedesModule } from './sudsedes/sudsedes.module';
 import { UserModule } from './user/user.module';
 import { MultaModule } from './multa/multa.module';
 import { DepartamentoModule } from './departamento/departamento.module';
+import { TipoAgenteModule } from './tipo-agente/tipo-agente.module';
+import { AgenteModule } from './agente/agente.module';
+import { PatrullaModule } from './patrulla/patrulla.module';
+import { ConfiguracionModule } from './configuracion/configuracion.module';
+import { ThemeModule } from './theme/theme.module';
 
 @Module({
   imports: [
@@ -26,6 +31,11 @@ import { DepartamentoModule } from './departamento/departamento.module';
     UserModule,
     MultaModule,
     DepartamentoModule,
+    TipoAgenteModule,
+    AgenteModule,
+    PatrullaModule,
+    ConfiguracionModule,
+    ThemeModule,
   ]
 })
 export class AppModule {}
