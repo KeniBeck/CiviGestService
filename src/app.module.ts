@@ -16,6 +16,7 @@ import { ThemeModule } from './theme/theme.module';
 import { TipoPermisoModule } from './tipo-permiso/tipo-permiso.module';
 import { PermisoModule } from './permiso/permiso.module';
 import { PagosPermisosModule } from './pagos-permisos/pagos-permisos.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PagosPermisosModule } from './pagos-permisos/pagos-permisos.module';
     TipoPermisoModule,
     PermisoModule,
     PagosPermisosModule,
+    RoleModule,
   ]
 })
 export class AppModule {}

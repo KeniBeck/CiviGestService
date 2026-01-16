@@ -13,6 +13,8 @@ import { PatrullaPaginationService } from './services/pagination/patrulla/patrul
 import { ConfiguracionPaginationService } from './services/pagination/configuracion/configuracion-pagination.service';
 import { ThemePaginationService } from './services/pagination/theme/theme-pagination.service';
 import { PermisoPaginationService } from './services/pagination/permiso/permiso-pagination.service';
+import { RolePaginationService } from './services/pagination/role/role-pagination.service';
+
 
 /**
  * CommonModule - Módulo global con servicios compartidos
@@ -37,6 +39,8 @@ import { PermisoPaginationService } from './services/pagination/permiso/permiso-
     ConfiguracionPaginationService,
     ThemePaginationService,
     PermisoPaginationService,
+    RolePaginationService,
+
   ],
   exports: [
     ValidationService,
@@ -52,6 +56,7 @@ import { PermisoPaginationService } from './services/pagination/permiso/permiso-
     ConfiguracionPaginationService,
     ThemePaginationService,
     PermisoPaginationService,
+    RolePaginationService,
   ],
 })
 export class CommonModule { }
