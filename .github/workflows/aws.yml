@@ -24,5 +24,7 @@ jobs:
             cd ~/CiviGestService
             git pull origin main
             npm install
+            npx prisma generate        
+            npx prisma migrate deploy  
             npm run build || true
             pm2 restart backend
