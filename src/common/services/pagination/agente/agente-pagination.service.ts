@@ -74,8 +74,9 @@ export class AgentePaginationService {
     if (filters?.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
-        { nombre: { contains: searchTerm, mode: 'insensitive' as const } },
-        { apellido: { contains: searchTerm, mode: 'insensitive' as const } },
+        { nombres: { contains: searchTerm, mode: 'insensitive' as const } },
+        { apellidoPaterno: { contains: searchTerm, mode: 'insensitive' as const } },
+        { apellidoMaterno: { contains: searchTerm, mode: 'insensitive' as const } },
         { numPlantilla: { contains: searchTerm, mode: 'insensitive' as const } },
       ];
     }
@@ -117,7 +118,7 @@ export class AgentePaginationService {
         },
       },
       where: whereClause,
-      orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      orderBy: [{ apellidoPaterno: 'asc' }, { apellidoMaterno: 'asc' }, { nombres: 'asc' }],
       activatePaginated,
     });
   }
