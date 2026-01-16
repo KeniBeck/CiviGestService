@@ -100,6 +100,9 @@ model Sede {
   patrullas       Patrulla[]
   tiposAgentes    TipoAgente[]
   configuraciones Configuracion[]
+  tipoPermisos    TipoPermiso[]
+  permisos        Permiso[]
+  pagosPermisos   PagoPermiso[]
 
   @@index([code])
   @@index([isActive])
@@ -131,6 +134,9 @@ model Subsede {
   patrullas         Patrulla[]
   tiposAgentes      TipoAgente[]
   configuracion     Configuracion?
+  tipoPermisos      TipoPermiso[]
+  permisos          Permiso[]
+  pagosPermisos     PagoPermiso[]
 
   @@unique([sedeId, code])
   @@index([sedeId])
@@ -284,6 +290,10 @@ model User {
   sedeAccess    UserSedeAccess[]
   subsedeAccess UserSubsedeAccess[]
 
+  // Pagos de permisos
+  pagosRealizados  PagoPermiso[] @relation("PagosRealizados")
+  pagosAutorizados PagoPermiso[] @relation("PagosAutorizados")
+
   @@index([sedeId])
   @@index([subsedeId])
   @@index([email])
@@ -333,6 +343,137 @@ model Multa {
   @@index([isActive])
   @@index([deletedAt])
   @@map("multas")
+}
+
+// ============================================
+// MÓDULO DE PERMISOS CIUDADANOS
+// ============================================
+
+// Tipos de Permisos (Catálogo/Plantilla por municipio)
+model TipoPermiso {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio que crea el tipo
+
+  nombre      String  @db.VarChar(100) // "Construcción", "Venta Ambulante"
+  descripcion String? @db.Text
+
+  // Configuración de campos personalizados (JSONB)
+  camposPersonalizados Json? // Define qué campos adicionales tiene este tipo
+
+  // Costos base (pueden ser sobreescritos por el permiso individual)
+  costoBase       Decimal? @db.Decimal(10, 2)
+  numUMAsBase     Decimal? @db.Decimal(10, 2)
+  numSalariosBase Decimal? @db.Decimal(10, 2)
+
+  // Vigencia por defecto (en días)
+  vigenciaDefecto Int @default(365) // 1 año por defecto
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede     Sede      @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede  Subsede   @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  permisos Permiso[]
+
+  @@unique([subsedeId, nombre]) // Nombre único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("tipos_permisos")
+}
+
+// Permisos Ciudadanos (Solicitudes/Instancias reales)
+model Permiso {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio
+
+  tipoPermisoId Int // FK a TipoPermiso
+
+  // Folio único
+  folio       String  @db.VarChar(50) // Folio único por municipio
+  descripcion String? @db.Text
+
+  // Datos del ciudadano solicitante
+  nombreCiudadano    String  @db.VarChar(200)
+  documentoCiudadano String  @db.VarChar(50) // CURP, RFC, INE, etc.
+  domicilioCiudadano String? @db.VarChar(255)
+  telefonoCiudadano  String? @db.VarChar(20)
+  emailCiudadano     String? @db.VarChar(100)
+
+  // Costos aplicados (copiados del tipo o personalizados al crear)
+  costo       Decimal? @db.Decimal(10, 2)
+  numSalarios Decimal? @db.Decimal(10, 2)
+  numUMAs     Decimal? @db.Decimal(10, 2)
+
+  // Vigencia
+  fechaEmision     DateTime
+  fechaVencimiento DateTime
+  vigenciaDias     Int // Calculado: fechaVencimiento - fechaEmision
+
+  // QR para validación del permiso
+  qr String? @db.Text
+
+  // Estado del permiso
+  estatus PermisoEstatus @default(SOLICITADO)
+
+  // Documentos adjuntos (array de URLs o paths)
+  documentosAdjuntos Json? // [{ "nombre": "Plano.pdf", "url": "..." }]
+
+  // CAMPOS PERSONALIZADOS (JSONB DINÁMICO)
+  camposAdicionales Json? // Aquí van los valores de los campos específicos del tipo
+
+  // Fechas importantes del flujo
+  fechaSolicitud  DateTime  @default(now())
+  fechaAprobacion DateTime?
+  fechaRechazo    DateTime?
+
+  // Observaciones y motivos
+  observaciones String? @db.Text
+  motivoRechazo String? @db.Text
+
+  // Estado y auditoría
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int?
+
+  // Relaciones
+  sede        Sede        @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede     Subsede     @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  tipoPermiso TipoPermiso @relation(fields: [tipoPermisoId], references: [id], onDelete: Restrict)
+  pagos       PagoPermiso[]
+
+  @@unique([subsedeId, folio]) // Folio único por municipio
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([tipoPermisoId])
+  @@index([documentoCiudadano]) // Búsqueda por documento
+  @@index([estatus]) // Filtrar por estado
+  @@index([fechaVencimiento]) // Búsqueda de vencidos
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("permisos")
+}
+
+// Estados del permiso
+enum PermisoEstatus {
+  SOLICITADO // Recién solicitado
+  EN_REVISION // En proceso de revisión
+  APROBADO // Aprobado y vigente
+  RECHAZADO // Rechazado por autoridad
+  VENCIDO // Ya venció la vigencia
+  CANCELADO // Cancelado por autoridad o ciudadano
+
+  @@map("permiso_estatus")
 }
 
 // ============================================
@@ -589,4 +730,117 @@ enum AccessLevel {
   SUBSEDE // Acceso a UNA o VARIAS subsedes (municipios específicos)
 
   @@map("access_level")
+}
+
+// ============================================
+// MÓDULO DE PAGOS DE PERMISOS
+// ============================================
+
+model PagoPermiso {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio donde se realiza el pago
+
+  // Relación con el permiso pagado
+  permisoId Int // FK a Permiso
+
+  // Información del ciudadano (copiada del permiso para histórico)
+  nombreCiudadano    String @db.VarChar(200)
+  documentoCiudadano String @db.VarChar(50)
+
+  // Costos y cálculos
+  costoBase      Decimal @db.Decimal(10, 2) // Costo original del permiso
+  descuentoPct   Decimal @default(0) @db.Decimal(5, 2) // Porcentaje de descuento (0-100)
+  descuentoMonto Decimal @default(0) @db.Decimal(10, 2) // Monto del descuento en pesos
+  total          Decimal @db.Decimal(10, 2) // Total a pagar (costoBase - descuentoMonto)
+
+  // Método de pago
+  metodoPago MetodoPago @default(EFECTIVO)
+
+  // Referencia de pago (para transferencias/tarjetas)
+  referenciaPago String? @db.VarChar(100)
+
+  // Autorización del descuento
+  autorizaDescuento Boolean @default(false)
+  autorizadoPor     Int? // FK a User (quien autorizó el descuento)
+  firmaAutorizacion String? @db.Text // Firma digital o sello
+
+  // Usuario que registró el pago (cajero/operador)
+  usuarioCobroId Int // FK a User
+
+  // Fechas
+  fechaPago DateTime @default(now()) // Fecha en que se realizó el pago
+
+  // Estado del pago
+  estatus EstatusPago @default(PAGADO)
+
+  // Notas adicionales
+  observaciones String? @db.Text
+
+  // Comprobante de pago
+  qrComprobante  String? @db.Text // QR code del comprobante
+
+  // Enlaces públicos temporales para compartir comprobante
+  tokenPublico   String?   @unique @db.VarChar(255) // Token único para enlace público
+  tokenExpiraEn  DateTime? // Fecha de expiración del token
+
+  // REEMBOLSOS: Si este pago es un reembolso, referencia al pago original
+  pagoOriginalId Int? // FK a PagoPermiso (self-relation)
+  esReembolso    Boolean @default(false) // Flag para identificar reembolsos
+
+  // Auditoría completa
+  isActive  Boolean   @default(true)
+  deletedAt DateTime? // Soft delete
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int? // Usuario que creó el registro
+  updatedBy Int? // Usuario que actualizó el registro
+  deletedBy Int? // Usuario que eliminó el registro
+
+  // Relaciones
+  sede            Sede         @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede         Subsede      @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  permiso         Permiso      @relation(fields: [permisoId], references: [id], onDelete: Restrict)
+  usuarioCobro    User         @relation("PagosRealizados", fields: [usuarioCobroId], references: [id])
+  usuarioAutorizo User?        @relation("PagosAutorizados", fields: [autorizadoPor], references: [id])
+  pagoOriginal    PagoPermiso? @relation("ReembolsoPago", fields: [pagoOriginalId], references: [id], onDelete: SetNull)
+  reembolsos      PagoPermiso[] @relation("ReembolsoPago") // Pagos que reembolsan este pago
+
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([permisoId])
+  @@index([usuarioCobroId])
+  @@index([autorizadoPor])
+  @@index([fechaPago])
+  @@index([estatus])
+  @@index([esReembolso])
+  @@index([pagoOriginalId])
+  @@index([tokenPublico])
+  @@index([tokenExpiraEn])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("pagos_permisos")
+}
+
+// Métodos de pago disponibles
+enum MetodoPago {
+  EFECTIVO
+  TARJETA_DEBITO
+  TARJETA_CREDITO
+  TRANSFERENCIA
+  CHEQUE
+  SPEI
+  OTRO
+
+  @@map("metodo_pago")
+}
+
+// Estados posibles de un pago
+enum EstatusPago {
+  PAGADO // Pago completado exitosamente
+  PENDIENTE // Pago pendiente de confirmar
+  CANCELADO // Pago cancelado
+  REEMBOLSADO // Pago que fue reembolsado
+
+  @@map("estatus_pago")
 }

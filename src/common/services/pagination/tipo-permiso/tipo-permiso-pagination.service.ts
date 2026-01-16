@@ -1,31 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { PaginationService } from '../pagination.service';
 import { PaginatedResponse } from '../../interface/paginate-operation';
-import { FilterAgenteDto } from '../../../../agente/dto/filter-agente.dto';
+import { FilterTipoPermisoDto } from '../../../../tipo-permiso/dto/filter-tipo-permiso.dto';
 
 /**
- * Servicio de paginación específico para Agentes
+ * Servicio de paginación específico para Tipos de Permiso
  */
 @Injectable()
-export class AgentePaginationService {
+export class TipoPermisoPaginationService {
   constructor(private readonly paginationService: PaginationService) {}
 
   /**
-   * Pagina los agentes con opciones específicas
+   * Pagina los tipos de permiso con opciones específicas
    */
-  async paginateAgentes<T>(
-    options: {
-      prisma: any;
-      page?: number;
-      limit?: number;
-      filters?: FilterAgenteDto;
-      activatePaginated?: boolean;
-      userSedeId: number;
-      userSubsedeId: number | null;
-      accessLevel: string;
-      roles: string[];
-    }
-  ): Promise<PaginatedResponse<T>> {
+  async paginateTiposPermiso<T>(options: {
+    prisma: any;
+    page?: number;
+    limit?: number;
+    filters?: FilterTipoPermisoDto;
+    activatePaginated?: boolean;
+    userSedeId: number;
+    userSubsedeId: number | null;
+    accessLevel: string;
+    roles: string[];
+  }): Promise<PaginatedResponse<T>> {
     const {
       prisma,
       page = 1,
@@ -59,66 +57,44 @@ export class AgentePaginationService {
       whereClause.isActive = filters.isActive;
     }
 
-    if (filters?.tipoId) {
-      whereClause.tipoId = filters.tipoId;
-    }
-
-    if (filters?.departamentoId) {
-      whereClause.departamentoId = filters.departamentoId;
-    }
-
-    if (filters?.patrullaId) {
-      whereClause.patrullaId = filters.patrullaId;
-    }
-
     if (filters?.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
-        { nombres: { contains: searchTerm, mode: 'insensitive' as const } },
-        { apellidoPaterno: { contains: searchTerm, mode: 'insensitive' as const } },
-        { apellidoMaterno: { contains: searchTerm, mode: 'insensitive' as const } },
-        { numPlantilla: { contains: searchTerm, mode: 'insensitive' as const } },
+        { nombre: { contains: searchTerm, mode: 'insensitive' as const } },
+        { descripcion: { contains: searchTerm, mode: 'insensitive' as const } },
       ];
     }
 
     // Usar el servicio genérico de paginación
     return await this.paginationService.paginateEntity<T>({
       prisma,
-      entity: 'agente',
+      entity: 'tipoPermiso',
       page,
       limit,
       filters,
       include: {
         sede: {
           select: {
+            id: true,
             name: true,
             code: true,
           },
         },
         subsede: {
           select: {
+            id: true,
             name: true,
             code: true,
           },
         },
-        tipo: {
+        _count: {
           select: {
-            tipo: true,
-          },
-        },
-        departamento: {
-          select: {
-            nombre: true,
-          },
-        },
-        patrulla: {
-          select: {
-            numPatrulla: true,
+            permisos: true,
           },
         },
       },
       where: whereClause,
-      orderBy: [{ apellidoPaterno: 'asc' }, { apellidoMaterno: 'asc' }, { nombres: 'asc' }],
+      orderBy: { nombre: 'asc' },
       activatePaginated,
     });
   }
