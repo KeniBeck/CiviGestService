@@ -19,7 +19,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Login de usuario
@@ -195,8 +195,13 @@ export class AuthService {
     });
 
     // Asignar rol por defecto (Usuario)
-    const defaultRole = await this.prisma.role.findUnique({
-      where: { name: 'Usuario' },
+    const defaultRole = await this.prisma.role.findFirst({
+      where: { 
+        name: 'Usuario', 
+        isGlobal: true, 
+        sedeId: null, 
+        subsedeId: null 
+      },
     });
 
     if (defaultRole) {
