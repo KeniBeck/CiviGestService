@@ -103,6 +103,7 @@ model Sede {
   tipoPermisos    TipoPermiso[]
   permisos        Permiso[]
   pagosPermisos   PagoPermiso[]
+  roles           Role[]
 
   @@index([code])
   @@index([isActive])
@@ -137,6 +138,7 @@ model Subsede {
   tipoPermisos      TipoPermiso[]
   permisos          Permiso[]
   pagosPermisos     PagoPermiso[]
+  roles             Role[]
 
   @@unique([sedeId, code])
   @@index([sedeId])
@@ -447,9 +449,9 @@ model Permiso {
   createdBy Int?
 
   // Relaciones
-  sede        Sede        @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  subsede     Subsede     @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
-  tipoPermiso TipoPermiso @relation(fields: [tipoPermisoId], references: [id], onDelete: Restrict)
+  sede        Sede          @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede     Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  tipoPermiso TipoPermiso   @relation(fields: [tipoPermisoId], references: [id], onDelete: Restrict)
   pagos       PagoPermiso[]
 
   @@unique([subsedeId, folio]) // Folio único por municipio
@@ -644,23 +646,34 @@ model UserRole {
 
 model Role {
   id          Int     @id @default(autoincrement())
-  name        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(50)
   description String? @db.VarChar(255)
   isActive    Boolean @default(true)
 
   // Nivel de rol (para jerarquía)
   level RoleLevel @default(MUNICIPAL)
 
+  sedeId    Int? // NULL = rol global del sistema
+  subsedeId Int? // NULL = rol de sede o global
+  isGlobal  Boolean @default(true) // true = predefinido, false = personalizado
+
   // Auditoría
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  createdBy Int?
 
   // Relaciones
+  sede        Sede?            @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede     Subsede?         @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
   userRoles   UserRole[]
   permissions RolePermission[]
 
+  @@unique([name, sedeId, subsedeId]) // Nombre único por scope
   @@index([isActive])
   @@index([level])
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([isGlobal])
   @@map("roles")
 }
 
@@ -778,11 +791,11 @@ model PagoPermiso {
   observaciones String? @db.Text
 
   // Comprobante de pago
-  qrComprobante  String? @db.Text // QR code del comprobante
+  qrComprobante String? @db.Text // QR code del comprobante
 
   // Enlaces públicos temporales para compartir comprobante
-  tokenPublico   String?   @unique @db.VarChar(255) // Token único para enlace público
-  tokenExpiraEn  DateTime? // Fecha de expiración del token
+  tokenPublico  String?   @unique @db.VarChar(255) // Token único para enlace público
+  tokenExpiraEn DateTime? // Fecha de expiración del token
 
   // REEMBOLSOS: Si este pago es un reembolso, referencia al pago original
   pagoOriginalId Int? // FK a PagoPermiso (self-relation)
@@ -798,12 +811,12 @@ model PagoPermiso {
   deletedBy Int? // Usuario que eliminó el registro
 
   // Relaciones
-  sede            Sede         @relation(fields: [sedeId], references: [id], onDelete: Cascade)
-  subsede         Subsede      @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
-  permiso         Permiso      @relation(fields: [permisoId], references: [id], onDelete: Restrict)
-  usuarioCobro    User         @relation("PagosRealizados", fields: [usuarioCobroId], references: [id])
-  usuarioAutorizo User?        @relation("PagosAutorizados", fields: [autorizadoPor], references: [id])
-  pagoOriginal    PagoPermiso? @relation("ReembolsoPago", fields: [pagoOriginalId], references: [id], onDelete: SetNull)
+  sede            Sede          @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede         Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  permiso         Permiso       @relation(fields: [permisoId], references: [id], onDelete: Restrict)
+  usuarioCobro    User          @relation("PagosRealizados", fields: [usuarioCobroId], references: [id])
+  usuarioAutorizo User?         @relation("PagosAutorizados", fields: [autorizadoPor], references: [id])
+  pagoOriginal    PagoPermiso?  @relation("ReembolsoPago", fields: [pagoOriginalId], references: [id], onDelete: SetNull)
   reembolsos      PagoPermiso[] @relation("ReembolsoPago") // Pagos que reembolsan este pago
 
   @@index([sedeId])
