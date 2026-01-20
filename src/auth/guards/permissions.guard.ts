@@ -66,16 +66,26 @@ export class PermissionsGuard implements CanActivate {
 
   /**
    * Asegura que los permisos existan en la base de datos
-   * Si no existen, los crea automáticamente y los asigna al rol Super Administrador
+   * Si no existen, los crea automáticamente y los asigna a los roles administrativos
+   * (Super Administrador, Administrador Estatal, Administrador Municipal)
    */
   private async ensurePermissionsExist(policies: Policy[]): Promise<void> {
-    // Obtener el rol Super Administrador
-    const superAdminRole = await this.prisma.role.findFirst({
-      where: { name: 'Super Administrador' },
+    // Obtener los roles administrativos
+    const adminRoles = await this.prisma.role.findMany({
+      where: {
+        name: {
+          in: [
+            'Super Administrador',
+            'Administrador Estatal',
+            'Administrador Municipal',
+          ],
+        },
+        isActive: true,
+      },
     });
 
-    if (!superAdminRole) {
-      // Si no existe el rol Super Administrador, solo crear los permisos
+    if (adminRoles.length === 0) {
+      // Si no existen los roles administrativos, solo crear los permisos
       for (const policy of policies) {
         await this.createPermissionIfNotExists(policy);
       }
@@ -85,9 +95,11 @@ export class PermissionsGuard implements CanActivate {
     for (const policy of policies) {
       const permission = await this.createPermissionIfNotExists(policy);
       
-      // Asignar el permiso al rol Super Administrador si no está asignado
+      // Asignar el permiso a todos los roles administrativos si no está asignado
       if (permission) {
-        await this.assignPermissionToSuperAdmin(permission.id, superAdminRole.id);
+        for (const role of adminRoles) {
+          await this.assignPermissionToRole(permission.id, role.id);
+        }
       }
     }
   }
@@ -122,9 +134,9 @@ export class PermissionsGuard implements CanActivate {
   }
 
   /**
-   * Asigna un permiso al rol Super Administrador si no está asignado
+   * Asigna un permiso a un rol si no está asignado
    */
-  private async assignPermissionToSuperAdmin(
+  private async assignPermissionToRole(
     permissionId: number,
     roleId: number,
   ): Promise<void> {

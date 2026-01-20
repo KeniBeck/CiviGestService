@@ -186,6 +186,7 @@ export class ThemeController {
    * GET /themes/:id - Obtener un tema por ID
    * Accesible para todos los usuarios autenticados
    */
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un tema por ID' })
   @ApiResponse({
