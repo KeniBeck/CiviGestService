@@ -63,8 +63,13 @@ export class RoleFinderService {
    * Obtener un rol por nombre
    */
   async findByName(name: string, userRoleLevel: RoleLevel): Promise<Role> {
-    const role = await this.prisma.role.findUnique({
-      where: { name },
+    const role = await this.prisma.role.findFirst({
+      where: { 
+        name,
+        isGlobal: true,
+        sedeId: null,
+        subsedeId: null
+      },
     });
 
     if (!role) {
@@ -145,8 +150,13 @@ export class RoleFinderService {
    * Verificar si un rol con ese nombre ya existe
    */
   async roleNameExists(name: string): Promise<boolean> {
-    const role = await this.prisma.role.findUnique({
-      where: { name },
+    const role = await this.prisma.role.findFirst({
+      where: { 
+        name,
+        isGlobal: true,
+        sedeId: null,
+        subsedeId: null
+      },
     });
     return !!role;
   }
