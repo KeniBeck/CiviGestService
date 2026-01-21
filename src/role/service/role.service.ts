@@ -43,18 +43,22 @@ export class RoleService {
   async create(
     createRoleDto: CreateRoleDto,
     userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
   ): Promise<any> {
     // Validar que el usuario puede crear este nivel de rol
     this.validateCanManageRoleLevel(createRoleDto.level, userRoleLevel);
 
-    // Verificar que no exista un rol con ese nombre
-    const existingRole = await this.roleFinderService.roleNameExists(
+    // Verificar que no exista un rol con ese nombre en el mismo scope
+    const existingRole = await this.checkRoleNameExists(
       createRoleDto.name,
+      userSedeId,
+      userSubsedeId,
     );
 
     if (existingRole) {
       throw new ConflictException(
-        `Ya existe un rol con el nombre "${createRoleDto.name}"`,
+        `Ya existe un rol con el nombre "${createRoleDto.name}" en este alcance`,
       );
     }
 
@@ -65,6 +69,9 @@ export class RoleService {
         description: createRoleDto.description,
         level: createRoleDto.level,
         isActive: createRoleDto.isActive ?? true,
+        isGlobal: false, // Roles creados por usuarios son personalizados
+        sedeId: userSedeId,
+        subsedeId: userSubsedeId,
       },
     });
   }
@@ -76,9 +83,23 @@ export class RoleService {
     id: number,
     updateRoleDto: UpdateRoleDto,
     userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
   ): Promise<any> {
     // Buscar el rol
-    const role = await this.roleFinderService.findOne(id, userRoleLevel);
+    const role = await this.roleFinderService.findOne(
+      id,
+      userRoleLevel,
+      userSedeId,
+      userSubsedeId,
+    );
+
+    // VALIDACIÓN: Solo Super Admin puede editar roles globales
+    if (role.isGlobal && userRoleLevel !== 'SUPER_ADMIN') {
+      throw new ForbiddenException(
+        'Solo Super Administradores pueden editar roles globales del sistema',
+      );
+    }
 
     // Validar que el usuario puede modificar el nivel actual del rol
     this.validateCanManageRoleLevel(role.level, userRoleLevel);
@@ -90,13 +111,15 @@ export class RoleService {
 
     // Si se está cambiando el nombre, verificar que no exista
     if (updateRoleDto.name && updateRoleDto.name !== role.name) {
-      const existingRole = await this.roleFinderService.roleNameExists(
+      const existingRole = await this.checkRoleNameExists(
         updateRoleDto.name,
+        role.sedeId,
+        role.subsedeId,
       );
 
       if (existingRole) {
         throw new ConflictException(
-          `Ya existe un rol con el nombre "${updateRoleDto.name}"`,
+          `Ya existe un rol con el nombre "${updateRoleDto.name}" en este alcance`,
         );
       }
     }
@@ -112,9 +135,26 @@ export class RoleService {
    * Eliminar un rol (soft delete si es necesario o hard delete)
    * Por ahora solo desactivamos el rol
    */
-  async remove(id: number, userRoleLevel: RoleLevel): Promise<any> {
+  async remove(
+    id: number,
+    userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
+  ): Promise<any> {
     // Buscar el rol
-    const role = await this.roleFinderService.findOne(id, userRoleLevel);
+    const role = await this.roleFinderService.findOne(
+      id,
+      userRoleLevel,
+      userSedeId,
+      userSubsedeId,
+    );
+
+    // VALIDACIÓN: Solo Super Admin puede eliminar roles globales
+    if (role.isGlobal && userRoleLevel !== 'SUPER_ADMIN') {
+      throw new ForbiddenException(
+        'Solo Super Administradores pueden eliminar roles globales del sistema',
+      );
+    }
 
     // Validar que el usuario puede eliminar este nivel de rol
     this.validateCanManageRoleLevel(role.level, userRoleLevel);
@@ -143,7 +183,12 @@ export class RoleService {
   /**
    * Reactivar un rol desactivado
    */
-  async activate(id: number, userRoleLevel: RoleLevel): Promise<any> {
+  async activate(
+    id: number,
+    userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
+  ): Promise<any> {
     const role = await this.prisma.role.findUnique({
       where: { id },
     });
@@ -151,6 +196,16 @@ export class RoleService {
     if (!role) {
       throw new NotFoundException(`Rol con ID ${id} no encontrado`);
     }
+
+    // VALIDACIÓN: Solo Super Admin puede reactivar roles globales
+    if (role.isGlobal && userRoleLevel !== 'SUPER_ADMIN') {
+      throw new ForbiddenException(
+        'Solo Super Administradores pueden reactivar roles globales del sistema',
+      );
+    }
+
+    // Validar acceso a roles personalizados
+    this.validateRoleOwnership(role, userSedeId, userSubsedeId);
 
     // Validar permisos
     this.validateCanManageRoleLevel(role.level, userRoleLevel);
@@ -162,39 +217,54 @@ export class RoleService {
   }
 
   /**
+   * Verificar si existe un rol con el mismo nombre en el mismo scope
+   */
+  private async checkRoleNameExists(
+    name: string,
+    sedeId: number | null,
+    subsedeId: number | null,
+  ): Promise<boolean> {
+    const role = await this.prisma.role.findFirst({
+      where: {
+        name,
+        sedeId,
+        subsedeId,
+      },
+    });
+    return !!role;
+  }
+
+  /**
+   * Validar acceso a roles personalizados (no globales)
+   */
+  private validateRoleOwnership(
+    role: any,
+    userSedeId: number,
+    userSubsedeId: number | null,
+  ): void {
+    // Si es un rol global, todos pueden verlo
+    if (role.isGlobal) {
+      return;
+    }
+
+    // Si es un rol personalizado, validar acceso
+    if (role.sedeId && role.sedeId !== userSedeId) {
+      throw new ForbiddenException('No tienes acceso a este rol');
+    }
+
+    if (role.subsedeId && userSubsedeId && role.subsedeId !== userSubsedeId) {
+      throw new ForbiddenException('No tienes acceso a este rol');
+    }
+  }
+
+  /**
    * Validar que un usuario puede gestionar un nivel de rol específico
    */
   private validateCanManageRoleLevel(
     roleLevel: RoleLevel,
     userRoleLevel: RoleLevel,
   ): void {
-    // SUPER_ADMIN puede gestionar cualquier nivel
-    if (userRoleLevel === 'SUPER_ADMIN') {
-      return;
-    }
-
-    // ESTATAL puede gestionar ESTATAL y MUNICIPAL
-    if (userRoleLevel === 'ESTATAL') {
-      if (roleLevel !== 'ESTATAL' && roleLevel !== 'MUNICIPAL') {
-        throw new ForbiddenException(
-          'No tienes permisos para gestionar roles de este nivel',
-        );
-      }
-      return;
-    }
-
-    // MUNICIPAL puede gestionar MUNICIPAL y OPERATIVO
-    if (userRoleLevel === 'MUNICIPAL') {
-      if (roleLevel !== 'MUNICIPAL' && roleLevel !== 'OPERATIVO') {
-        throw new ForbiddenException(
-          'No tienes permisos para gestionar roles de este nivel',
-        );
-      }
-      return;
-    }
-
-    // OPERATIVO no puede gestionar roles
-    throw new ForbiddenException('No tienes permisos para gestionar roles');
+    // ...existing code...
   }
 }
 

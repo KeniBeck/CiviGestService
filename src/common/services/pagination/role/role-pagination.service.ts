@@ -15,6 +15,8 @@ export class RolePaginationService {
     filters?: FilterRolesDto;
     activatePaginated?: boolean;
     userRoleLevel: RoleLevel;
+    userSedeId: number;
+    userSubsedeId: number | null;
   }): Promise<PaginatedResponse<T>> {
     const {
       prisma,
@@ -23,9 +25,45 @@ export class RolePaginationService {
       filters,
       activatePaginated = true,
       userRoleLevel,
+      userSedeId,
+      userSubsedeId,
     } = options;
 
     const whereClause: any = {};
+
+    // ============================================
+    // FILTRO DE ROLES GLOBALES VS PERSONALIZADOS
+    // ============================================
+    // - Roles globales (isGlobal: true): visibles para todos
+    // - Roles personalizados (isGlobal: false): solo visibles si:
+    //   * El rol es de la sede del usuario
+    //   * O el rol es de la subsede del usuario
+    // ============================================
+    
+    whereClause.OR = [
+      // Roles globales del sistema
+      {
+        isGlobal: true,
+        sedeId: null,
+        subsedeId: null,
+      },
+      // Roles personalizados de la sede del usuario
+      {
+        isGlobal: false,
+        sedeId: userSedeId,
+        subsedeId: null,
+      },
+      // Roles personalizados de la subsede del usuario
+      ...(userSubsedeId
+        ? [
+            {
+              isGlobal: false,
+              sedeId: userSedeId,
+              subsedeId: userSubsedeId,
+            },
+          ]
+        : []),
+    ];
 
     // ============================================
     // LÓGICA DE NIVELES DE PERMISOS
@@ -111,6 +149,21 @@ export class RolePaginationService {
       whereClause.isActive = filters.isActive;
     }
 
+    // Incluir permisos si se solicita
+    const includeRelations = filters?.includePermissions
+      ? {
+          permissions: {
+            include: {
+              permission: true,
+            },
+            orderBy: [
+              { permission: { resource: 'asc' } },
+              { permission: { action: 'asc' } },
+            ],
+          },
+        }
+      : undefined;
+
     // Usar el servicio genérico de paginación
     return this.paginationService.paginateEntity<T>({
       prisma,
@@ -120,6 +173,7 @@ export class RolePaginationService {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       activatePaginated,
+      include: includeRelations,
     });
   }
 }

@@ -29,6 +29,8 @@ export class RoleFinderService {
   async findAll(
     filters: FilterRolesDto,
     userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
   ): Promise<PaginatedResponse<Role>> {
     return this.rolePaginationService.paginateRoles<Role>({
       prisma: this.prisma,
@@ -37,16 +39,38 @@ export class RoleFinderService {
       filters,
       activatePaginated: filters.activatePaginated,
       userRoleLevel,
+      userSedeId,
+      userSubsedeId,
     });
   }
 
   /**
    * Obtener un rol por ID
    * Valida que el usuario tenga permisos para ver ese nivel de rol
+   * Y que tenga acceso si es un rol personalizado de sede/subsede
    */
-  async findOne(id: number, userRoleLevel: RoleLevel): Promise<Role> {
+  async findOne(
+    id: number,
+    userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
+    includePermissions: boolean = false,
+  ): Promise<Role> {
     const role = await this.prisma.role.findUnique({
       where: { id },
+      include: includePermissions
+        ? {
+            permissions: {
+              include: {
+                permission: true,
+              },
+              orderBy: [
+                { permission: { resource: 'asc' } },
+                { permission: { action: 'asc' } },
+              ],
+            },
+          }
+        : undefined,
     });
 
     if (!role) {
@@ -55,6 +79,9 @@ export class RoleFinderService {
 
     // Validar que el usuario puede ver este nivel de rol
     this.validateRoleLevelAccess(role.level, userRoleLevel);
+
+    // Validar acceso a roles personalizados (no globales)
+    this.validateRoleOwnership(role, userSedeId, userSubsedeId);
 
     return role;
   }
@@ -86,8 +113,38 @@ export class RoleFinderService {
    * Obtener todos los roles disponibles según el nivel del usuario
    * Sin paginación, para selects/dropdowns
    */
-  async findAvailableRoles(userRoleLevel: RoleLevel): Promise<Role[]> {
+  async findAvailableRoles(
+    userRoleLevel: RoleLevel,
+    userSedeId: number,
+    userSubsedeId: number | null,
+  ): Promise<Role[]> {
     const whereClause: any = { isActive: true };
+
+    // Filtrar roles: globales O de la sede/subsede del usuario
+    whereClause.OR = [
+      // Roles globales (visibles para todos)
+      {
+        isGlobal: true,
+        sedeId: null,
+        subsedeId: null,
+      },
+      // Roles de la sede del usuario
+      {
+        isGlobal: false,
+        sedeId: userSedeId,
+        subsedeId: null,
+      },
+      // Roles de la subsede del usuario
+      ...(userSubsedeId
+        ? [
+            {
+              isGlobal: false,
+              sedeId: userSedeId,
+              subsedeId: userSubsedeId,
+            },
+          ]
+        : []),
+    ];
 
     // Aplicar restricciones según nivel del usuario
     if (userRoleLevel === 'ESTATAL') {
@@ -141,6 +198,46 @@ export class RoleFinderService {
     if (userRoleLevel === 'OPERATIVO') {
       if (roleLevel !== 'OPERATIVO') {
         throw new NotFoundException('No tienes permisos para ver este rol');
+      }
+      return;
+    }
+  }
+
+  /**
+   * Validar acceso a roles personalizados (no globales)
+   * Los roles globales son visibles para todos
+   * Los roles personalizados solo son visibles si:
+   * - El rol es de la sede del usuario (sedeId coincide)
+   * - O el rol es de la subsede del usuario (sedeId y subsedeId coinciden)
+   */
+  private validateRoleOwnership(
+    role: any,
+    userSedeId: number,
+    userSubsedeId: number | null,
+  ): void {
+    // Si es un rol global, todos pueden verlo
+    if (role.isGlobal) {
+      return;
+    }
+
+    // Si es un rol personalizado, validar acceso
+    // Caso 1: Rol de sede (sin subsede específica)
+    if (role.sedeId && !role.subsedeId) {
+      if (role.sedeId !== userSedeId) {
+        throw new NotFoundException('No tienes acceso a este rol');
+      }
+      return;
+    }
+
+    // Caso 2: Rol de subsede específica
+    if (role.sedeId && role.subsedeId) {
+      if (role.sedeId !== userSedeId) {
+        throw new NotFoundException('No tienes acceso a este rol');
+      }
+      
+      // Validar subsede solo si el usuario tiene una subsede asignada
+      if (userSubsedeId && role.subsedeId !== userSubsedeId) {
+        throw new NotFoundException('No tienes acceso a este rol');
       }
       return;
     }

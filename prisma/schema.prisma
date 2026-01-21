@@ -703,6 +703,9 @@ model Permission {
   description String? @db.VarChar(255)
   isActive    Boolean @default(true)
 
+  // Nivel de rol (para jerarquía)
+  level RoleLevel @default(MUNICIPAL)
+
   // Auditoría
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

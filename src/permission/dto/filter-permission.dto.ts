@@ -1,9 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { RoleLevel } from '@prisma/client';
 
-export class FilterRolesDto {
+export class FilterPermissionDto {
   @ApiPropertyOptional({
     description: 'Número de página',
     example: 1,
@@ -23,20 +22,28 @@ export class FilterRolesDto {
   limit?: number = 10;
 
   @ApiPropertyOptional({
-    description: 'Buscar por nombre del rol',
-    example: 'Administrador',
+    description: 'Buscar en resource, action o description',
+    example: 'multas',
   })
   @IsOptional()
   @IsString()
   search?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar por nivel del rol',
-    enum: RoleLevel,
+    description: 'Filtrar por recurso específico',
+    example: 'multas',
   })
   @IsOptional()
-  @IsEnum(RoleLevel)
-  level?: RoleLevel;
+  @IsString()
+  resource?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por acción específica',
+    example: 'create',
+  })
+  @IsOptional()
+  @IsString()
+  action?: string;
 
   @ApiPropertyOptional({
     description: 'Filtrar por estado activo',
@@ -55,13 +62,4 @@ export class FilterRolesDto {
   @Type(() => Boolean)
   @IsBoolean()
   activatePaginated?: boolean = true;
-
-  @ApiPropertyOptional({
-    description: 'Incluir permisos del rol en la respuesta',
-    default: false,
-  })
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  includePermissions?: boolean = false;
 }

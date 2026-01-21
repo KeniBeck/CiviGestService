@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Put,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,9 +22,15 @@ import {
 } from '@nestjs/swagger';
 import { RoleService } from './service/role.service';
 import { RoleFinderService } from './service/role-finder.service';
+import { RolePermissionService } from './service/role-permission.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { FilterRolesDto } from './dto/filter-roles.dto';
+import {
+  AssignPermissionDto,
+  AssignMultiplePermissionsDto,
+  SyncPermissionsDto,
+} from './dto/assign-permission.dto';
 import { Role } from './entities/role.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Permissions } from '../auth/decorators/permissions.decorator';
@@ -50,6 +57,7 @@ export class RoleController {
   constructor(
     private readonly roleService: RoleService,
     private readonly roleFinderService: RoleFinderService,
+    private readonly rolePermissionService: RolePermissionService,
   ) {}
 
   /**
@@ -84,7 +92,12 @@ export class RoleController {
     @CurrentUser() user: RequestUser,
   ): Promise<Role> {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleService.create(createRoleDto, userRoleLevel);
+    return this.roleService.create(
+      createRoleDto,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 
   /**
@@ -108,7 +121,12 @@ export class RoleController {
     @CurrentUser() user: RequestUser,
   ) {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleFinderService.findAll(filters, userRoleLevel);
+    return this.roleFinderService.findAll(
+      filters,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 
   /**
@@ -127,7 +145,11 @@ export class RoleController {
   })
   async findAvailable(@CurrentUser() user: RequestUser): Promise<Role[]> {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleFinderService.findAvailableRoles(userRoleLevel);
+    return this.roleFinderService.findAvailableRoles(
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 
   /**
@@ -151,6 +173,12 @@ export class RoleController {
   @Get(':id')
   @Permissions([{ resource: 'roles', action: 'read' }] as Policy[])
   @ApiOperation({ summary: 'Obtener rol por ID' })
+  @ApiQuery({
+    name: 'includePermissions',
+    required: false,
+    type: Boolean,
+    description: 'Incluir permisos del rol',
+  })
   @ApiResponse({
     status: 200,
     description: 'Rol encontrado',
@@ -159,10 +187,17 @@ export class RoleController {
   @ApiResponse({ status: 404, description: 'Rol no encontrado' })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @Query('includePermissions') includePermissions: boolean = false,
     @CurrentUser() user: RequestUser,
   ): Promise<Role> {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleFinderService.findOne(id, userRoleLevel);
+    return this.roleFinderService.findOne(
+      id,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+      includePermissions,
+    );
   }
 
   /**
@@ -185,7 +220,13 @@ export class RoleController {
     @CurrentUser() user: RequestUser,
   ): Promise<Role> {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleService.update(id, updateRoleDto, userRoleLevel);
+    return this.roleService.update(
+      id,
+      updateRoleDto,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 
   /**
@@ -210,7 +251,12 @@ export class RoleController {
     @CurrentUser() user: RequestUser,
   ) {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleService.remove(id, userRoleLevel);
+    return this.roleService.remove(
+      id,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 
   /**
@@ -231,7 +277,182 @@ export class RoleController {
     @CurrentUser() user: RequestUser,
   ): Promise<Role> {
     const userRoleLevel = this.getUserRoleLevel(user);
-    return this.roleService.activate(id, userRoleLevel);
+    return this.roleService.activate(
+      id,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
+  }
+
+  // ============================================
+  // ENDPOINTS DE GESTIÓN DE PERMISOS
+  // ============================================
+
+  /**
+   * Obtener todos los permisos de un rol
+   */
+  @Get(':id/permissions')
+  @Permissions([{ resource: 'roles', action: 'read' }] as Policy[])
+  @ApiOperation({ summary: 'Obtener permisos de un rol' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de permisos del rol',
+  })
+  @ApiResponse({ status: 404, description: 'Rol no encontrado' })
+  async getRolePermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.getRolePermissions(
+      id,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
+  }
+
+  /**
+   * Asignar un permiso a un rol
+   */
+  @Post(':id/permissions')
+  @Permissions([{ resource: 'roles', action: 'update' }] as Policy[])
+  @ApiOperation({ summary: 'Asignar un permiso a un rol' })
+  @ApiResponse({
+    status: 201,
+    description: 'Permiso asignado exitosamente',
+  })
+  @ApiResponse({ status: 404, description: 'Rol o permiso no encontrado' })
+  @ApiResponse({ status: 400, description: 'Permiso ya asignado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  async assignPermission(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() assignPermissionDto: AssignPermissionDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.assignPermissionToRole(
+      id,
+      assignPermissionDto.permissionId,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+      user.userId,
+    );
+  }
+
+  /**
+   * Asignar múltiples permisos a un rol
+   */
+  @Post(':id/permissions/bulk')
+  @Permissions([{ resource: 'roles', action: 'update' }] as Policy[])
+  @ApiOperation({ summary: 'Asignar múltiples permisos a un rol' })
+  @ApiResponse({
+    status: 201,
+    description: 'Permisos asignados exitosamente',
+  })
+  @ApiResponse({ status: 404, description: 'Rol no encontrado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  async assignMultiplePermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() assignMultipleDto: AssignMultiplePermissionsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.assignMultiplePermissionsToRole(
+      id,
+      assignMultipleDto.permissionIds,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+      user.userId,
+    );
+  }
+
+  /**
+   * Sincronizar permisos de un rol (reemplaza todos)
+   */
+  @Put(':id/permissions/sync')
+  @Permissions([{ resource: 'roles', action: 'update' }] as Policy[])
+  @ApiOperation({
+    summary: 'Sincronizar permisos de un rol (reemplaza todos los permisos)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Permisos sincronizados exitosamente',
+  })
+  @ApiResponse({ status: 404, description: 'Rol no encontrado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  async syncPermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() syncPermissionsDto: SyncPermissionsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.syncRolePermissions(
+      id,
+      syncPermissionsDto.permissionIds,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+      user.userId,
+    );
+  }
+
+  /**
+   * Remover un permiso de un rol
+   */
+  @Delete(':id/permissions/:permissionId')
+  @Permissions([{ resource: 'roles', action: 'update' }] as Policy[])
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remover un permiso de un rol' })
+  @ApiResponse({
+    status: 204,
+    description: 'Permiso removido exitosamente',
+  })
+  @ApiResponse({ status: 404, description: 'Rol o permiso no encontrado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  async removePermission(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('permissionId', ParseIntPipe) permissionId: number,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.removePermissionFromRole(
+      id,
+      permissionId,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
+  }
+
+  /**
+   * Remover múltiples permisos de un rol
+   */
+  @Delete(':id/permissions/bulk')
+  @Permissions([{ resource: 'roles', action: 'update' }] as Policy[])
+  @ApiOperation({ summary: 'Remover múltiples permisos de un rol' })
+  @ApiResponse({
+    status: 200,
+    description: 'Permisos removidos exitosamente',
+  })
+  @ApiResponse({ status: 404, description: 'Rol no encontrado' })
+  @ApiResponse({ status: 403, description: 'Sin permisos' })
+  async removeMultiplePermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() removeMultipleDto: AssignMultiplePermissionsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    const userRoleLevel = this.getUserRoleLevel(user);
+    return this.rolePermissionService.removeMultiplePermissionsFromRole(
+      id,
+      removeMultipleDto.permissionIds,
+      userRoleLevel,
+      user.sedeId,
+      user.subsedeId,
+    );
   }
 }
 

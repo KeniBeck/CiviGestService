@@ -19,6 +19,24 @@ export class Role {
   @ApiProperty({ enum: RoleLevel, example: RoleLevel.MUNICIPAL })
   level: RoleLevel;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la sede (NULL para roles globales)',
+  })
+  sedeId: number | null;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la subsede (NULL para roles globales o de sede)',
+  })
+  subsedeId: number | null;
+
+  @ApiProperty({
+    example: true,
+    description: 'true = rol global del sistema, false = rol personalizado',
+  })
+  isGlobal: boolean;
+
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   createdAt: Date;
 
