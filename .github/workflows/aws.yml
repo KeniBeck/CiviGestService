@@ -25,6 +25,8 @@ jobs:
             git pull origin main
             npm install
             npx prisma generate        
-            npx prisma migrate deploy  
+            npx prisma migrate deploy
+            chmod +x scripts/*
+            npm run seed:roles
             npm run build || true
             pm2 restart backend
