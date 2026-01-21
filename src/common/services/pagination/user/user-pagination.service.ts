@@ -106,16 +106,20 @@ export class PaginationUsersService {
         activatePaginated: finalActivatePaginated,
         buildWhereClause: filters => this.buildUsersWhereClause(filters),
         getAdditionalStats: async () => {
-          // Construir where clause para estadísticas
-          const statsWhere = this.buildUsersWhereClause({
+          // Construir where clause para estadísticas SIN el filtro isActive
+          // Las estadísticas deben mostrar totales globales
+          const statsFilters = {
             ...filters,
+            isActive: undefined, // Remover el filtro isActive para las estadísticas
             userSedeId,
             userSubsedeId,
             accessLevel,
             sedeAccessIds,
             subsedeAccessIds,
             isSuperAdmin,
-          });
+          };
+
+          const statsWhere = this.buildUsersWhereClause(statsFilters);
 
           // Obtener estadísticas adicionales
           const totalUsers = await prisma.user.count({
@@ -159,9 +163,7 @@ export class PaginationUsersService {
    * Aplica las mismas restricciones de acceso que FinderUserService
    */
   private buildUsersWhereClause(filters?: any): any {
-    const whereClause: any = {
-      deletedAt: null, // Solo usuarios no eliminados
-    };
+    const whereClause: any = {};
     
     if (!filters) return whereClause;
 
@@ -179,8 +181,13 @@ export class PaginationUsersService {
     } = filters;
 
     // Filtro por estado activo/inactivo
+    // Si se especifica isActive, solo filtramos por ese campo
+    // NO incluimos deletedAt porque es solo para auditoría
     if (isActive !== undefined) {
       whereClause.isActive = isActive;
+    } else {
+      // Solo si NO se especifica isActive, excluimos usuarios con deletedAt
+      whereClause.deletedAt = null;
     }
 
     // Filtro de búsqueda por texto
@@ -196,14 +203,17 @@ export class PaginationUsersService {
     }
 
     // Control de acceso según nivel (misma lógica que FinderUserService)
+    // SUPER ADMIN: No aplicar restricciones de sede/subsede SALVO que las especifique explícitamente
     if (isSuperAdmin) {
-      // Super Admin puede filtrar por sede/subsede específica
+      // Super Admin puede filtrar por sede/subsede específica SI LO SOLICITA
       if (sedeId) {
         whereClause.sedeId = sedeId;
       }
       if (subsedeId) {
         whereClause.subsedeId = subsedeId;
       }
+      // Si no especifica sedeId ni subsedeId, NO agregar ningún filtro de sede/subsede
+      // Esto permite que vea TODOS los usuarios del sistema
     } else if (accessLevel === 'SEDE') {
       // Usuario SEDE: ve usuarios de su sede y sedes con acceso explícito
       const accessibleSedeIds = [userSedeId, ...sedeAccessIds];

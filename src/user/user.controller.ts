@@ -56,9 +56,8 @@ export class UserController {
     @Body() createUserDto: CreateUserDto,
     @CurrentUser() user: RequestUser,
   ) {
-    createUserDto.sedeId = user.sedeId;
-    createUserDto.subsedeId = user.subsedeId ?? undefined;
-    console.log(user.roles)
+    // No sobrescribir sedeId y subsedeId aquí
+    // El servicio validará los permisos según el rol del creador
     return this.userService.create(
       createUserDto,
       user.userId,
@@ -110,6 +109,8 @@ export class UserController {
       if (queryParams.isActive !== undefined) {
         filters.isActive = queryParams.isActive;
       }
+
+      console.log(filters.isActive); 
 
       if (queryParams.search && queryParams.search.trim() !== '') {
         filters.search = queryParams.search.trim();

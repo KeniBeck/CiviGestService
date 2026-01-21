@@ -32,8 +32,8 @@ export class UserService {
    * Crear nuevo usuario
    * Validaciones por nivel:
    * - Super Admin: puede crear usuarios en cualquier sede/subsede
-   * - Usuario SEDE: solo puede crear usuarios en su sede
-   * - Usuario SUBSEDE: solo puede crear usuarios en su subsede
+   * - Administrador Estatal (SEDE): puede crear usuarios solo en su sede, pero en cualquier subsede de su sede
+   * - Administrador Municipal (SUBSEDE): solo puede crear usuarios en su subsede específica
    */
   async create(
     createUserDto: CreateUserDto,
@@ -45,16 +45,27 @@ export class UserService {
   ) {
     const isSuperAdmin = creatorRoles.includes('Super Administrador');
 
-    // Validar que el creador tenga permisos para crear en la sede especificada
+    // Validar que el creador tenga permisos para crear en la sede/subsede especificada
     if (!isSuperAdmin) {
-      if (createUserDto.sedeId !== creatorSedeId) {
-        throw new ForbiddenException(
-          'No puedes crear usuarios en una sede diferente a la tuya',
-        );
-      }
-
-      // Si tiene acceso SUBSEDE, solo puede crear usuarios en su subsede
-      if (creatorAccessLevel === AccessLevel.SUBSEDE) {
+      // Administrador Estatal (SEDE)
+      if (creatorAccessLevel === AccessLevel.SEDE) {
+        // Solo puede crear usuarios en su propia sede
+        if (createUserDto.sedeId !== creatorSedeId) {
+          throw new ForbiddenException(
+            'Solo puedes crear usuarios en tu propia sede',
+          );
+        }
+        // Puede crear en cualquier subsede de su sede (no necesita validación adicional)
+      } 
+      // Administrador Municipal (SUBSEDE)
+      else if (creatorAccessLevel === AccessLevel.SUBSEDE) {
+        // Debe usar su propia sede
+        if (createUserDto.sedeId !== creatorSedeId) {
+          throw new ForbiddenException(
+            'Solo puedes crear usuarios en tu propia sede',
+          );
+        }
+        // Debe usar su propia subsede
         if (
           !createUserDto.subsedeId ||
           createUserDto.subsedeId !== creatorSubsedeId
@@ -64,7 +75,14 @@ export class UserService {
           );
         }
       }
+      // Otros niveles no pueden crear usuarios
+      else {
+        throw new ForbiddenException(
+          'No tienes permisos suficientes para crear usuarios',
+        );
+      }
     }
+    // Super Admin puede crear usuarios en cualquier sede/subsede (sin validaciones)
 
     // Validaciones de unicidad usando ValidationService
     await this.validationService.validateEmailUnique(createUserDto.email);
@@ -368,10 +386,34 @@ export class UserService {
 
     // Validar subsede (si se cambia) usando ValidationService
     if (updateUserDto.subsedeId && updateUserDto.subsedeId !== existingUser.subsedeId) {
+      // Determinar qué sede usar para la validación
+      const targetSedeId = updateUserDto.sedeId || existingUser.sedeId;
+      
       await this.validationService.validateSubsedeExists(
         updateUserDto.subsedeId,
-        existingUser.sedeId, // Debe pertenecer a la misma sede
+        targetSedeId, // Debe pertenecer a la sede (nueva o actual)
       );
+    }
+
+    // Validar cambio de sede (solo Super Admin puede cambiar de sede)
+    if (updateUserDto.sedeId && updateUserDto.sedeId !== existingUser.sedeId) {
+      if (!isSuperAdmin) {
+        throw new ForbiddenException(
+          'Solo Super Administradores pueden cambiar la sede de un usuario',
+        );
+      }
+      
+      // Validar que la nueva sede exista
+      await this.validationService.validateSedeExists(updateUserDto.sedeId);
+      
+      // Si cambia de sede y tiene subsede, validar que la subsede pertenezca a la nueva sede
+      const targetSubsedeId = updateUserDto.subsedeId || existingUser.subsedeId;
+      if (targetSubsedeId) {
+        await this.validationService.validateSubsedeExists(
+          targetSubsedeId,
+          updateUserDto.sedeId,
+        );
+      }
     }
 
     // Validar accesos explícitos a subsedes (si se especifican)
@@ -400,6 +442,7 @@ export class UserService {
         const updatedUser = await tx.user.update({
           where: { id },
           data: {
+            sedeId: updateUserDto.sedeId, // Super Admin puede cambiar sede
             email: updateUserDto.email,
             username: updateUserDto.username,
             firstName: updateUserDto.firstName,
@@ -428,23 +471,71 @@ export class UserService {
             isSuperAdmin,
           );
 
-          // Desactivar roles actuales
-          await tx.userRole.updateMany({
-            where: { userId: id },
-            data: { isActive: false },
+          // Obtener roles actuales del usuario
+          const currentUserRoles = await tx.userRole.findMany({
+            where: { 
+              userId: id,
+              isActive: true,
+            },
+            select: { roleId: true },
           });
+
+          const currentRoleIds = currentUserRoles.map(ur => ur.roleId);
+          const newRoleIds = updateUserDto.roleIds;
+
+          // Roles a eliminar (están en current pero no en new)
+          const rolesToDeactivate = currentRoleIds.filter(
+            roleId => !newRoleIds.includes(roleId)
+          );
+
+          // Roles a crear (están en new pero no en current)
+          const rolesToCreate = newRoleIds.filter(
+            roleId => !currentRoleIds.includes(roleId)
+          );
+
+          // Roles a mantener (están en ambos - solo activar por si están inactivos)
+          const rolesToKeep = newRoleIds.filter(
+            roleId => currentRoleIds.includes(roleId)
+          );
+
+          // Desactivar roles que ya no están en la lista
+          if (rolesToDeactivate.length > 0) {
+            await tx.userRole.updateMany({
+              where: { 
+                userId: id,
+                roleId: { in: rolesToDeactivate },
+              },
+              data: { isActive: false },
+            });
+          }
 
           // Crear nuevos roles
-          const userRolesData = updateUserDto.roleIds.map((roleId) => ({
-            userId: id,
-            roleId,
-            assignedBy: updaterId,
-            isActive: true,
-          }));
+          if (rolesToCreate.length > 0) {
+            const userRolesData = rolesToCreate.map((roleId) => ({
+              userId: id,
+              roleId,
+              assignedBy: updaterId,
+              isActive: true,
+            }));
 
-          await tx.userRole.createMany({
-            data: userRolesData,
-          });
+            await tx.userRole.createMany({
+              data: userRolesData,
+            });
+          }
+
+          // Asegurar que los roles que se mantienen estén activos
+          if (rolesToKeep.length > 0) {
+            await tx.userRole.updateMany({
+              where: { 
+                userId: id,
+                roleId: { in: rolesToKeep },
+              },
+              data: { 
+                isActive: true,
+                assignedBy: updaterId,
+              },
+            });
+          }
         }
 
         // Actualizar accesos a subsedes (si se especifican)
@@ -476,7 +567,7 @@ export class UserService {
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        throw new ConflictException('Error de duplicado en campos únicos');
+        throw new ConflictException(`Error de duplicado en campos únicos en ${error.message}`);
       }
       throw error;
     }
@@ -574,7 +665,7 @@ export class UserService {
     const user = await this.prisma.user.findFirst({
       where: {
         id,
-        deletedAt: null,
+        isActive: false
       },
     });
 
@@ -615,6 +706,7 @@ export class UserService {
       where: { id },
       data: {
         isActive: !user.isActive,
+        deletedAt: null
       },
     });
   }
