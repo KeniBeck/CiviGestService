@@ -56,8 +56,9 @@ export class CreatePagoPermisoDto {
   metodoPago: MetodoPago;
 
   @ApiPropertyOptional({
-    description: 'Referencia del pago (para tarjetas/transferencias)',
-    example: 'REF-123456789',
+    description: 'Referencia del pago (GENERADA AUTOMÁTICAMENTE - no enviar desde frontend)',
+    example: 'JAL-GDL-EFE-1737552000000',
+    deprecated: true,
   })
   @IsOptional()
   @IsString()

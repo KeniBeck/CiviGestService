@@ -1,22 +1,24 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  Query, 
-  UseGuards, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
   Req,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiBearerAuth, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiParam 
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { PagosPermisosService } from './services/pagos-permisos.service';
 import { PagosPermisosFinderService } from './services/pagos-permisos-finder.service';
@@ -32,15 +34,15 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Pagos de Permisos')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('pagos-permisos')
 export class PagosPermisosController {
   constructor(
     private readonly pagosPermisosService: PagosPermisosService,
     private readonly pagosPermisosFinderService: PagosPermisosFinderService,
-  ) {}
+  ) { }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post()
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal', 'Operativo')
   @RequirePermissions({ resource: 'pago-permiso', action: 'create' })
@@ -52,6 +54,8 @@ export class PagosPermisosController {
     return this.pagosPermisosService.create(createDto, req.user);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get()
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal', 'Operativo')
   @RequirePermissions({ resource: 'pago-permiso', action: 'read' })
@@ -68,6 +72,8 @@ export class PagosPermisosController {
     );
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get(':id')
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal', 'Operativo')
   @RequirePermissions({ resource: 'pago-permiso', action: 'read' })
@@ -86,6 +92,8 @@ export class PagosPermisosController {
     );
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Patch(':id')
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal')
   @RequirePermissions({ resource: 'pago-permiso', action: 'update' })
@@ -110,6 +118,8 @@ export class PagosPermisosController {
     );
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Delete(':id')
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal')
   @RequirePermissions({ resource: 'pago-permiso', action: 'delete' })
@@ -128,7 +138,8 @@ export class PagosPermisosController {
       user.roles,
     );
   }
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post('reembolso')
   @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal')
   @RequirePermissions({ resource: 'pago-permiso', action: 'reembolsar' })
@@ -140,48 +151,30 @@ export class PagosPermisosController {
     return this.pagosPermisosService.createReembolso(reembolsoDto, req.user);
   }
 
-  @Post(':id/generar-enlace-publico')
-  @Roles('Super Administrador', 'Administrador Estatal', 'Administrador Municipal', 'Operativo')
-  @RequirePermissions({ resource: 'pago-permiso', action: 'read' })
-  @ApiOperation({ summary: 'Generar enlace público temporal al comprobante' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID del pago' })
-  @ApiResponse({
-    status: 200,
-    description: 'Enlace público generado',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        enlacePublico: {
-          type: 'string',
-          example: 'https://civiggest.com/comprobantes/abc123...',
-        },
-        expiraEn: { type: 'string', format: 'date-time' },
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'Pago no encontrado' })
-  async generarEnlacePublico(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-  ) {
-    return this.pagosPermisosService.generarEnlacePublico(id, req.user);
-  }
-
   @Public()
-  @Get('publico/:token')
-  @ApiOperation({ summary: 'Obtener datos del comprobante por token público (sin autenticación)' })
-  @ApiParam({ name: 'token', type: String, description: 'Token público del comprobante' })
+  @Get('publico/buscar-por-documento')
+  @ApiOperation({
+    summary: 'Buscar comprobantes de pagos por documento del ciudadano (público, sin autenticación)',
+    description: 'Permite a los ciudadanos buscar sus propios comprobantes usando su documento de identidad (CURP, RFC, INE, etc.)'
+  })
+  @ApiQuery({
+    name: 'documento',
+    type: String,
+    required: true,
+    description: 'Documento de identidad del ciudadano (CURP, RFC, INE, etc.)',
+    example: 'CURP123456789'
+  })
   @ApiResponse({
     status: 200,
-    description: 'Datos del comprobante',
+    description: 'Lista de pagos encontrados para ese documento',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Comprobante no encontrado o expirado',
-  })
-  async verComprobantePublico(@Param('token') token: string) {
-    return this.pagosPermisosService.getComprobantePublico(token);
+  @ApiResponse({ status: 400, description: 'Documento no proporcionado' })
+  @ApiResponse({ status: 404, description: 'No se encontraron pagos para ese documento' })
+  async buscarPorDocumento(@Query('documento') documento: string) {
+    if (!documento || documento.trim() === '') {
+      throw new BadRequestException('El documento es requerido');
+    }
+    return this.pagosPermisosFinderService.findByDocumento(documento.trim());
   }
 }
 

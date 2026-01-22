@@ -10,7 +10,6 @@ import { CreateReembolsoDto } from '../dto/create-reembolso.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PagosPermisosFinderService } from './pagos-permisos-finder.service';
 import { generateQR } from '../utils/qr-generator.util';
-import { randomBytes } from 'crypto';
 
 @Injectable()
 export class PagosPermisosService {
@@ -102,11 +101,15 @@ export class PagosPermisosService {
       throw new BadRequestException('El descuento no puede ser mayor al costo');
     }
 
-    // 6. Generar QR del comprobante
-    const qrData = `CIVIGGEST-PAGO-${Date.now()}-PERMISO-${permiso.folio}`;
-    const qrCode = await generateQR(qrData);
+    // 6. Generar referencia única de pago
+    const timestamp = Date.now();
+    const sedeCode = permiso.sede.code;
+    const subsedeCode = permiso.subsede.code;
+    const metodoPagoCode = createDto.metodoPago.substring(0, 3).toUpperCase(); // EFE, TAR, TRA
+    const referenciaPago = `${sedeCode}-${subsedeCode}-${metodoPagoCode}-${timestamp}`;
+    // Ejemplo: JAL-GDL-EFE-1737552000000
 
-    // 7. Crear el pago
+    // 7. Crear el pago primero para obtener su ID
     const pago = await this.prisma.pagoPermiso.create({
       data: {
         sedeId: permiso.sedeId,
@@ -119,12 +122,11 @@ export class PagosPermisosService {
         descuentoMonto,
         total,
         metodoPago: createDto.metodoPago,
-        referenciaPago: createDto.referenciaPago,
+        referenciaPago,
         autorizaDescuento: createDto.autorizaDescuento || false,
         autorizadoPor: createDto.autorizadoPor,
         firmaAutorizacion: createDto.firmaAutorizacion,
         usuarioCobroId: currentUser.sub,
-        qrComprobante: qrCode,
         observaciones: createDto.observaciones,
         estatus: 'PAGADO',
         createdBy: currentUser.sub,
@@ -148,7 +150,35 @@ export class PagosPermisosService {
       },
     });
 
-    return pago;
+    // 8. Generar QR con la URL del frontend
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const qrData = `${frontendUrl}/comprobante-permisos?dni=${encodeURIComponent(permiso.documentoCiudadano)}&idPago=${pago.id}`;
+    const qrCode = await generateQR(qrData);
+
+    // 9. Actualizar el pago con el QR generado
+    const pagoConQR = await this.prisma.pagoPermiso.update({
+      where: { id: pago.id },
+      data: { qrComprobante: qrCode },
+      include: {
+        permiso: {
+          include: {
+            tipoPermiso: true,
+          },
+        },
+        sede: true,
+        subsede: true,
+        usuarioCobro: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return pagoConQR;
   }
 
   /**
@@ -310,107 +340,6 @@ export class PagosPermisosService {
     });
 
     return reembolso;
-  }
-
-  /**
-   * Generar enlace público temporal
-   */
-  async generarEnlacePublico(pagoId: number, user: any) {
-    // 1. Validar que el pago exista y el usuario tenga acceso
-    const pago = await this.finderService.findOne(
-      pagoId,
-      user.sedeId,
-      user.subsedeId,
-      user.accessLevel,
-      user.roles,
-    );
-
-    // 2. Generar token único de 64 caracteres hexadecimales
-    const token = randomBytes(32).toString('hex');
-
-    // 3. Establecer fecha de expiración (72 horas)
-    const expiraEn = new Date();
-    expiraEn.setHours(expiraEn.getHours() + 72);
-
-    // 4. Guardar token en la base de datos
-    await this.prisma.pagoPermiso.update({
-      where: { id: pagoId },
-      data: {
-        tokenPublico: token,
-        tokenExpiraEn: expiraEn,
-        updatedBy: user.sub,
-      },
-    });
-
-    // 5. Construir enlace público
-    const enlacePublico = `${process.env.FRONTEND_URL}/comprobantes/${token}`;
-
-    return {
-      success: true,
-      enlacePublico,
-      expiraEn,
-    };
-  }
-
-  /**
-   * Obtener datos del comprobante por token público
-   * Esta ruta NO requiere autenticación
-   */
-  async getComprobantePublico(token: string) {
-    // Buscar pago por token válido y no expirado
-    const pago = await this.prisma.pagoPermiso.findFirst({
-      where: {
-        tokenPublico: token,
-        tokenExpiraEn: { gte: new Date() }, // No expirado
-        deletedAt: null,
-        isActive: true,
-      },
-      include: {
-        permiso: {
-          include: {
-            tipoPermiso: true,
-          },
-        },
-        sede: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
-        subsede: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
-        usuarioCobro: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-          },
-        },
-        usuarioAutorizo: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-          },
-        },
-      },
-    });
-
-    if (!pago) {
-      throw new NotFoundException(
-        'Comprobante no encontrado o el enlace ha expirado',
-      );
-    }
-
-    return pago;
   }
 
   /**

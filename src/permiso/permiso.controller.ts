@@ -65,7 +65,7 @@ export class PermisoController {
   @ApiOperation({ summary: 'Aprobar un permiso' })
   @ApiResponse({ status: 200, type: Permiso })
   @ApiParam({ name: 'id', type: Number })
-  @Roles('Administrador Estatal', 'Super Administrador')
+  @Roles('Administrador Estatal', 'Super Administrador', 'Administrador Municipal')
   @RequirePermissions({ resource: 'permiso', action: 'approve' })
   @Patch(':id/aprobar')
   aprobar(@Param('id') id: string, @Req() req: Request) {
@@ -76,7 +76,7 @@ export class PermisoController {
   @ApiResponse({ status: 200, type: Permiso })
   @ApiParam({ name: 'id', type: Number })
   @ApiBody({ schema: { properties: { motivoRechazo: { type: 'string' } } } })
-  @Roles('Administrador Estatal', 'Super Administrador')
+  @Roles('Administrador Estatal', 'Super Administrador', 'Administrador Municipal')
   @RequirePermissions({ resource: 'permiso', action: 'reject' })
   @Patch(':id/rechazar')
   rechazar(@Param('id') id: string, @Body('motivoRechazo') motivoRechazo: string, @Req() req: Request) {
