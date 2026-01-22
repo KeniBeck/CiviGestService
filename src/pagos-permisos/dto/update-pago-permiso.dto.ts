@@ -12,9 +12,17 @@ export class UpdatePagoPermisoDto {
   estatus?: EstatusPago;
 
   @ApiPropertyOptional({
-    description: 'Actualizar observaciones',
+    description: 'Actualizar observaciones del pago',
   })
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  @ApiPropertyOptional({
+    description: 'Actualizar referencia de pago',
+    example: 'REF-123456-CORREGIDA',
+  })
+  @IsOptional()
+  @IsString()
+  referenciaPago?: string;
 }

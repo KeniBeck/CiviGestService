@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, ConflictException, NotFoundException }
 import { CreatePermisoDto } from '../dto/create-permiso.dto';
 import { UpdatePermisoDto } from '../dto/update-permiso.dto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PermisoPaginationService } from 'src/common/services/pagination/permiso/permiso-pagination.service'; 
+import { PermisoPaginationService } from 'src/common/services/pagination/permiso/permiso-pagination.service';
 import { FilterPermisoDto } from '../dto/filter-permiso.dto';
 import { Prisma } from '@prisma/client';
 import { PermisoEstatus } from '@prisma/client';
@@ -12,7 +12,7 @@ export class PermisoService {
   constructor(
     private prisma: PrismaService,
     private permisoPaginationService: PermisoPaginationService,
-  ) {}
+  ) { }
 
   async create(createPermisoDto: CreatePermisoDto, user: any) {
     const { sedeId, subsedeId, id: userId } = user;
@@ -91,8 +91,30 @@ export class PermisoService {
         sede: true,
         subsede: true,
         tipoPermiso: { include: { sede: true, subsede: true } },
+        pagos: {
+          select: {
+            id: true,
+            metodoPago: true,
+            total: true,
+            fechaPago: true,
+            estatus: true,
+            referenciaPago: true,
+            observaciones: true,
+            costoBase: true,
+            descuentoPct: true,
+            descuentoMonto: true,
+            qrComprobante:true,
+            nombreCiudadano:true,
+            documentoCiudadano:true,
+            sede:{ select: { id: true, name: true } },
+            subsede:{ select: { id: true, name: true } },
+            usuarioCobro: { select: { id: true, firstName: true, lastName: true, username: true } },
+            usuarioAutorizo: { select: { id: true, firstName: true, lastName: true, username: true } },
+          },
+        },
       },
     });
+
     if (!permiso) throw new NotFoundException('Permiso no encontrado o sin acceso');
     return permiso;
   }

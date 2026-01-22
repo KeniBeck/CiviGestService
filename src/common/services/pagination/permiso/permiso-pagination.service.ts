@@ -5,7 +5,7 @@ import { FilterPermisoDto } from '../../../../permiso/dto/filter-permiso.dto';
 
 @Injectable()
 export class PermisoPaginationService {
-  constructor(private readonly paginationService: PaginationService) {}
+  constructor(private readonly paginationService: PaginationService) { }
 
   async paginatePermisos<T>(options: {
     prisma: any;
@@ -78,6 +78,27 @@ export class PermisoPaginationService {
         sede: true,
         subsede: true,
         tipoPermiso: true,
+        pagos: {
+          select: {
+            id: true,
+            metodoPago: true,
+            total: true,
+            fechaPago: true,
+            estatus: true,
+            referenciaPago: true,
+            observaciones: true,
+            costoBase: true,
+            descuentoPct: true,
+            descuentoMonto: true,
+            qrComprobante: true,
+            nombreCiudadano: true,
+            documentoCiudadano: true,
+            sede: { select: { id: true, name: true } },
+            subsede: { select: { id: true, name: true } },
+            usuarioCobro: { select: { id: true, firstName: true, lastName: true, username: true } },
+            usuarioAutorizo: { select: { id: true, firstName: true, lastName: true, username: true } },
+          },
+        },
       },
       where: whereClause,
       orderBy: { fechaSolicitud: 'desc' },

@@ -15,6 +15,7 @@ import { ThemePaginationService } from './services/pagination/theme/theme-pagina
 import { PermisoPaginationService } from './services/pagination/permiso/permiso-pagination.service';
 import { RolePaginationService } from './services/pagination/role/role-pagination.service';
 import { PermissionPaginationService } from './services/pagination/permission/permission-pagination.service';
+import { PagosPermisosPaginationService } from './services/pagination/pagos-permisos/pagos-permisos-pagination.service';
 
 
 /**
@@ -42,6 +43,7 @@ import { PermissionPaginationService } from './services/pagination/permission/pe
     PermisoPaginationService,
     RolePaginationService,
     PermissionPaginationService,
+    PagosPermisosPaginationService,
   ],
   exports: [
     ValidationService,
@@ -59,6 +61,7 @@ import { PermissionPaginationService } from './services/pagination/permission/pe
     PermisoPaginationService,
     RolePaginationService,
     PermissionPaginationService,
+    PagosPermisosPaginationService,
   ],
 })
 export class CommonModule { }
