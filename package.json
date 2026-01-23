@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "overrides": {
-     "lodash": "$lodash"
+    "lodash": "$lodash"
   },
   "scripts": {
     "build": "nest build",

@@ -151,8 +151,8 @@ while IFS= read -r NOMBRE_ESTADO; do
 
 -- Estado: $NOMBRE_ESTADO
 WITH sede_insert AS (
-    INSERT INTO sedes (name, code, email, "phoneCountryCode", "phoneNumber", address, city, state, "isActive", "createdAt", "updatedAt")
-    VALUES ('$NOMBRE_ESTADO_ESCAPED', '$CODIGO_CORTO', 'contacto@${CODIGO_CORTO,,}.gob.mx', '+52', '0000000000', 'Palacio de Gobierno', '$NOMBRE_ESTADO_ESCAPED', '$NOMBRE_ESTADO_ESCAPED', true, NOW(), NOW())
+    INSERT INTO sedes (name, code, "isActive", "createdAt", "updatedAt")
+    VALUES ('$NOMBRE_ESTADO_ESCAPED', '$CODIGO_CORTO', true, NOW(), NOW())
     ON CONFLICT (code) DO UPDATE 
     SET name = EXCLUDED.name, "updatedAt" = NOW()
     RETURNING id
@@ -270,7 +270,8 @@ fi
 
 echo ""
 echo -e "${BLUE}💡 Siguiente paso:${NC}"
-echo "   ./scripts/create-superadmin.sh"
-echo "   ./scripts/create-admin-estatal.sh"
-echo "   ./scripts/create-admin-municipal.sh"
+echo "    npm run seed:roles"
+echo "   ./scripts/seed-permisos-roles-base.sh"
+echo "   ./scripts/create-super-admin.sh"
+echo "   ./scripts/seed-themes.sh"
 echo ""
