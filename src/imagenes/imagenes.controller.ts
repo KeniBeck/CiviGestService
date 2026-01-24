@@ -1,9 +1,9 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
+import {
+  Controller,
+  Get,
+  Post,
   Delete,
-  Param, 
+  Param,
   Query,
   UploadedFile,
   UseInterceptors,
@@ -15,11 +15,20 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiParam, ApiQuery, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ImagenesService } from './service/imagenes.service';
 import { ImagenesFinderService } from './service/imagenes-finder.service';
 import type { ImageType } from './service/imagenes.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Imágenes')
 @ApiBearerAuth()
@@ -37,6 +46,7 @@ export class ImagenesController {
    * POST /imagenes/upload/:type?id=1&subId=2
    */
   @Post('upload/:type')
+  @Permissions([{ resource: 'imagenes', action: 'create' }])
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Subir una nueva imagen' })
   @ApiConsumes('multipart/form-data')
@@ -53,9 +63,27 @@ export class ImagenesController {
       required: ['file'],
     },
   })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
-  @ApiQuery({ name: 'id', type: Number, description: 'ID del registro principal' })
-  @ApiQuery({ name: 'subId', type: Number, required: false, description: 'ID secundario (opcional)' })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
+  @ApiQuery({
+    name: 'id',
+    type: Number,
+    description: 'ID del registro principal',
+  })
+  @ApiQuery({
+    name: 'subId',
+    type: Number,
+    required: false,
+    description: 'ID secundario (opcional)',
+  })
   async uploadImage(
     @Param('type') type: ImageType,
     @Query('id', ParseIntPipe) id: number,
@@ -70,7 +98,12 @@ export class ImagenesController {
 
     const subIdNumber = subId ? parseInt(subId, 10) : undefined;
 
-    const result = await this.imagenesService.handleUpload(file, id, type, subIdNumber);
+    const result = await this.imagenesService.handleUpload(
+      file,
+      id,
+      type,
+      subIdNumber,
+    );
 
     return {
       statusCode: HttpStatus.CREATED,
@@ -84,6 +117,7 @@ export class ImagenesController {
    * PUT /imagenes/replace/:type/:filename?id=1&subId=2
    */
   @Post('replace/:type/:filename')
+  @Permissions([{ resource: 'imagenes', action: 'update' }])
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Reemplazar una imagen existente' })
   @ApiConsumes('multipart/form-data')
@@ -100,10 +134,31 @@ export class ImagenesController {
       required: ['file'],
     },
   })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
-  @ApiParam({ name: 'filename', description: 'Nombre del archivo a reemplazar' })
-  @ApiQuery({ name: 'id', type: Number, description: 'ID del registro principal' })
-  @ApiQuery({ name: 'subId', type: Number, required: false, description: 'ID secundario (opcional)' })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
+  @ApiParam({
+    name: 'filename',
+    description: 'Nombre del archivo a reemplazar',
+  })
+  @ApiQuery({
+    name: 'id',
+    type: Number,
+    description: 'ID del registro principal',
+  })
+  @ApiQuery({
+    name: 'subId',
+    type: Number,
+    required: false,
+    description: 'ID secundario (opcional)',
+  })
   async replaceImage(
     @Param('type') type: ImageType,
     @Param('filename') filename: string,
@@ -120,11 +175,11 @@ export class ImagenesController {
     const subIdNumber = subId ? parseInt(subId, 10) : undefined;
 
     const result = await this.imagenesService.replaceImage(
-      filename, 
-      file, 
-      id, 
-      type, 
-      subIdNumber
+      filename,
+      file,
+      id,
+      type,
+      subIdNumber,
     );
 
     return {
@@ -141,7 +196,16 @@ export class ImagenesController {
   @Public()
   @Get(':type/:filename')
   @ApiOperation({ summary: 'Obtener una imagen' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo' })
   async serveImage(
     @Param('type') type: ImageType,
@@ -149,7 +213,10 @@ export class ImagenesController {
     @Res() res: Response,
   ) {
     try {
-      const metadata = this.imagenesFinderService.getImageMetadata(type, filename);
+      const metadata = this.imagenesFinderService.getImageMetadata(
+        type,
+        filename,
+      );
       const stream = this.imagenesFinderService.getImageStream(type, filename);
 
       res.setHeader('Content-Type', metadata.mimetype);
@@ -171,8 +238,18 @@ export class ImagenesController {
    * DELETE /imagenes/:type/:filename
    */
   @Delete(':type/:filename')
+  @Permissions([{ resource: 'imagenes', action: 'delete' }])
   @ApiOperation({ summary: 'Eliminar una imagen' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo a eliminar' })
   async deleteImage(
     @Param('type') type: ImageType,
@@ -191,8 +268,18 @@ export class ImagenesController {
    * GET /imagenes/list/:type
    */
   @Get('list/:type')
+  @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Listar todas las imágenes de un tipo' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   async listImages(@Param('type') type: ImageType) {
     const images = this.imagenesFinderService.listImagesByType(type);
 
@@ -209,14 +296,27 @@ export class ImagenesController {
    * GET /imagenes/metadata/:type/:filename
    */
   @Get('metadata/:type/:filename')
+  @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener metadata de una imagen' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo' })
   async getImageMetadata(
     @Param('type') type: ImageType,
     @Param('filename') filename: string,
   ) {
-    const metadata = this.imagenesFinderService.getImageMetadata(type, filename);
+    const metadata = this.imagenesFinderService.getImageMetadata(
+      type,
+      filename,
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -230,8 +330,18 @@ export class ImagenesController {
    * GET /imagenes/entity/:type/:id
    */
   @Get('entity/:type/:id')
+  @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener todas las imágenes de una entidad' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   @ApiParam({ name: 'id', description: 'ID de la entidad' })
   async getImagesByEntityId(
     @Param('type') type: ImageType,
@@ -252,17 +362,36 @@ export class ImagenesController {
    * GET /imagenes/latest/:type/:id?subId=2
    */
   @Get('latest/:type/:id')
+  @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener la imagen más reciente de una entidad' })
-  @ApiParam({ name: 'type', enum: ['configuraciones', 'permisos', 'usuarios', 'comprobantes', 'documentos'] })
+  @ApiParam({
+    name: 'type',
+    enum: [
+      'configuraciones',
+      'permisos',
+      'usuarios',
+      'comprobantes',
+      'documentos',
+    ],
+  })
   @ApiParam({ name: 'id', description: 'ID de la entidad' })
-  @ApiQuery({ name: 'subId', type: Number, required: false, description: 'ID secundario (opcional)' })
+  @ApiQuery({
+    name: 'subId',
+    type: Number,
+    required: false,
+    description: 'ID secundario (opcional)',
+  })
   async getLatestImage(
     @Param('type') type: ImageType,
     @Param('id', ParseIntPipe) id: number,
     @Query('subId') subId: string | undefined,
   ) {
     const subIdNumber = subId ? parseInt(subId, 10) : undefined;
-    const latestImage = this.imagenesFinderService.getLatestImageByEntityId(type, id, subIdNumber);
+    const latestImage = this.imagenesFinderService.getLatestImageByEntityId(
+      type,
+      id,
+      subIdNumber,
+    );
 
     if (!latestImage) {
       return {
