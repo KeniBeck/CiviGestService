@@ -2,8 +2,8 @@
 /dist
 /node_modules
 /build
-~/images
-
+/images
+/documentos
 # Logs
 logs
 *.log
