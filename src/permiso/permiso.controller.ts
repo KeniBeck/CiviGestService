@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { PermisoService } from './service/permiso.service';
 import { CreatePermisoDto } from './dto/create-permiso.dto';
 import { UpdatePermisoDto } from './dto/update-permiso.dto';
@@ -11,13 +11,16 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { Request } from 'express';
+import { FinderPermisoService } from './service/finder-permiso.service';
 
 @ApiTags('Permisos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('permiso')
 export class PermisoController {
-  constructor(private readonly permisoService: PermisoService) {}
+  constructor(
+    private readonly finderPermisoService: FinderPermisoService,
+    private readonly permisoService: PermisoService) {}
 
   @ApiOperation({ summary: 'Crear un permiso' })
   @ApiResponse({ status: 201, type: Permiso })
@@ -32,7 +35,7 @@ export class PermisoController {
   @RequirePermissions({ resource: 'permiso', action: 'read' })
   @Get()
   findAll(@Query() filters: FilterPermisoDto, @Req() req: Request) {
-    return this.permisoService.findAll(filters, req.user);
+    return this.finderPermisoService.findAll(filters, req.user);
   }
 
   @ApiOperation({ summary: 'Obtener un permiso por ID' })
@@ -41,7 +44,7 @@ export class PermisoController {
   @RequirePermissions({ resource: 'permiso', action: 'read' })
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: Request) {
-    return this.permisoService.findOne(+id, req.user);
+    return this.finderPermisoService.findOne(+id, req.user);
   }
 
   @ApiOperation({ summary: 'Actualizar un permiso' })
