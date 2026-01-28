@@ -105,4 +105,72 @@ export class PermisoPaginationService {
       activatePaginated,
     });
   }
+
+  async paginatePermisosByDni<T>(options: {
+    prisma: any;
+    page?: number;
+    limit?: number;
+    documentoCiudadano: string;
+    pagoId?: number;
+    activatePaginated?: boolean;
+  }): Promise<PaginatedResponse<T>> {
+    const {
+      prisma,
+      page = 1,
+      limit = 10,
+      documentoCiudadano,
+      pagoId,
+      activatePaginated = true,
+    } = options;
+
+    const whereClause: any = {
+      documentoCiudadano,
+      deletedAt: null,
+      estatus: { in: ['SOLICITADO', 'APROBADO'] },
+    };
+
+    if (pagoId) {
+      whereClause.pagos = {
+        some: {
+          id: pagoId,
+        },
+      };
+    }
+
+    return await this.paginationService.paginateEntity<T>({
+      prisma,
+      entity: 'permiso',
+      page,
+      limit,
+      include: {
+        sede: true,
+        subsede: true,
+        tipoPermiso: { include: { sede: true, subsede: true } },
+        pagos: {
+          select: {
+            id: true,
+            metodoPago: true,
+            total: true,
+            fechaPago: true,
+            estatus: true,
+            referenciaPago: true,
+            observaciones: true,
+            costoBase: true,
+            descuentoPct: true,
+            descuentoMonto: true,
+            qrComprobante: true,
+            nombreCiudadano: true,
+            documentoCiudadano: true,
+            sede: { select: { id: true, name: true } },
+            subsede: { select: { id: true, name: true } },
+            usuarioCobro: { select: { id: true, firstName: true, lastName: true, username: true } },
+            usuarioAutorizo: { select: { id: true, firstName: true, lastName: true, username: true } },
+          },
+        },
+      },
+      where: whereClause,
+      orderBy: { fechaSolicitud: 'desc' },
+      activatePaginated,
+    });
+  }
 }

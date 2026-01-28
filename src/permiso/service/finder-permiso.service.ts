@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FilterPermisoDto } from '../dto/filter-permiso.dto';
+import { FindDniPermisoDto } from '../dto/find-dni-permiso.dto';
 import { PermisoPaginationService } from 'src/common/services/pagination/permiso/permiso-pagination.service';
 
 @Injectable()
@@ -20,6 +21,16 @@ export class FinderPermisoService {
       userSubsedeId: subsedeId,
       accessLevel,
       roles,
+    });
+  }
+
+  async findDNI(findDniDto: FindDniPermisoDto) {
+    return this.permisoPaginationService.paginatePermisosByDni({
+      prisma: this.prisma,
+      page: findDniDto.page,
+      limit: findDniDto.limit,
+      documentoCiudadano: findDniDto.documentoCiudadano,
+      pagoId: findDniDto.pagoId,
     });
   }
 
