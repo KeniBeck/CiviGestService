@@ -320,7 +320,7 @@ export class PagosPermisosService {
           usuarioCobroId: currentUser.sub,
           autorizadoPor: reembolsoDto.autorizadoPor,
           observaciones: `REEMBOLSO DEL PAGO #${pagoOriginal.id}. ${reembolsoDto.motivoReembolso || ''}`,
-          estatus: 'PAGADO',
+          estatus: 'REEMBOLSADO',
           esReembolso: true,
           pagoOriginalId: pagoOriginal.id,
           createdBy: currentUser.sub,
@@ -336,6 +336,13 @@ export class PagosPermisosService {
         },
       });
 
+      // Actulizar el permiso asociado para reflejar que fue reembolsado
+      await prisma.permiso.update({
+        where: { id: pagoOriginal.permisoId },
+        data: {
+          estatus: "CANCELADO",
+        },
+      });
       return nuevoReembolso;
     });
 

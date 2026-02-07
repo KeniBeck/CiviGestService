@@ -27,4 +27,9 @@ export class UpdatePermisoDto extends PartialType(CreatePermisoDto) {
   @ApiPropertyOptional({ description: 'Fecha de rechazo' })
   @IsOptional()
   fechaRechazo?: Date;
+
+  @ApiPropertyOptional({ description: 'Código QR' })
+  @IsOptional()
+  @IsString()
+  qr?: string;
 }

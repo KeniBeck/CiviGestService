@@ -3,7 +3,8 @@
  * Centraliza la lectura de variables .env para fácil acceso
  */
 
-export const IMAGES_PATH = process.env.IMAGES_PATH || '~/images';
+export const IMAGES_PATH = process.env.IMAGES_PATH || './images';
+export const DOCUMENTS_PATH = process.env.DOCUMENTS_PATH || './documentos';
 export const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 export const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 export const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';

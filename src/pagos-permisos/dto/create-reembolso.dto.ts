@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -20,10 +20,7 @@ export class CreateReembolsoDto {
   @IsString()
   motivoReembolso?: string;
 
-  @ApiPropertyOptional({
-    description: 'ID del usuario que autoriza el reembolso',
-    example: 3,
-  })
+  @ApiHideProperty()
   @IsOptional()
   @IsInt()
   @Type(() => Number)

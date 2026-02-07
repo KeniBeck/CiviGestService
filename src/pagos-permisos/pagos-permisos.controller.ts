@@ -148,33 +148,9 @@ export class PagosPermisosController {
   @ApiResponse({ status: 400, description: 'No se puede reembolsar este pago' })
   @ApiResponse({ status: 404, description: 'Pago original no encontrado' })
   createReembolso(@Body() reembolsoDto: CreateReembolsoDto, @Req() req: any) {
-    return this.pagosPermisosService.createReembolso(reembolsoDto, req.user);
-  }
-
-  @Public()
-  @Get('publico/buscar-por-documento')
-  @ApiOperation({
-    summary: 'Buscar comprobantes de pagos por documento del ciudadano (público, sin autenticación)',
-    description: 'Permite a los ciudadanos buscar sus propios comprobantes usando su documento de identidad (CURP, RFC, INE, etc.)'
-  })
-  @ApiQuery({
-    name: 'documento',
-    type: String,
-    required: true,
-    description: 'Documento de identidad del ciudadano (CURP, RFC, INE, etc.)',
-    example: 'CURP123456789'
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de pagos encontrados para ese documento',
-  })
-  @ApiResponse({ status: 400, description: 'Documento no proporcionado' })
-  @ApiResponse({ status: 404, description: 'No se encontraron pagos para ese documento' })
-  async buscarPorDocumento(@Query('documento') documento: string) {
-    if (!documento || documento.trim() === '') {
-      throw new BadRequestException('El documento es requerido');
-    }
-    return this.pagosPermisosFinderService.findByDocumento(documento.trim());
+    const user = req.user;
+    reembolsoDto.autorizadoPor = user.sub;
+    return this.pagosPermisosService.createReembolso(reembolsoDto, user);
   }
 }
 

@@ -5,7 +5,7 @@ import { FilterPermisoDto } from '../../../../permiso/dto/filter-permiso.dto';
 
 @Injectable()
 export class PermisoPaginationService {
-  constructor(private readonly paginationService: PaginationService) { }
+  constructor(private readonly paginationService: PaginationService) {}
 
   async paginatePermisos<T>(options: {
     prisma: any;
@@ -51,10 +51,16 @@ export class PermisoPaginationService {
       whereClause.documentoCiudadano = filters.documentoCiudadano;
     }
     if (filters?.fechaDesde) {
-      whereClause.fechaEmision = { ...whereClause.fechaEmision, gte: filters.fechaDesde };
+      whereClause.fechaEmision = {
+        ...whereClause.fechaEmision,
+        gte: filters.fechaDesde,
+      };
     }
     if (filters?.fechaHasta) {
-      whereClause.fechaEmision = { ...whereClause.fechaEmision, lte: filters.fechaHasta };
+      whereClause.fechaEmision = {
+        ...whereClause.fechaEmision,
+        lte: filters.fechaHasta,
+      };
     }
     if (filters?.isActive !== undefined) {
       whereClause.isActive = filters.isActive;
@@ -62,9 +68,19 @@ export class PermisoPaginationService {
     if (filters?.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
-        { nombreCiudadano: { contains: searchTerm, mode: 'insensitive' as const } },
+        {
+          nombreCiudadano: {
+            contains: searchTerm,
+            mode: 'insensitive' as const,
+          },
+        },
         { folio: { contains: searchTerm, mode: 'insensitive' as const } },
-        { documentoCiudadano: { contains: searchTerm, mode: 'insensitive' as const } },
+        {
+          documentoCiudadano: {
+            contains: searchTerm,
+            mode: 'insensitive' as const,
+          },
+        },
       ];
     }
 
@@ -95,8 +111,110 @@ export class PermisoPaginationService {
             documentoCiudadano: true,
             sede: { select: { id: true, name: true } },
             subsede: { select: { id: true, name: true } },
-            usuarioCobro: { select: { id: true, firstName: true, lastName: true, username: true } },
-            usuarioAutorizo: { select: { id: true, firstName: true, lastName: true, username: true } },
+            usuarioCobro: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+              },
+            },
+            usuarioAutorizo: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+              },
+            },
+          },
+        },
+      },
+      where: whereClause,
+      orderBy: { fechaSolicitud: 'desc' },
+      activatePaginated,
+    });
+  }
+
+  async paginatePermisosByDni<T>(options: {
+    prisma: any;
+    page?: number;
+    limit?: number;
+    documentoCiudadano: string;
+    pagoId?: number;
+    activatePaginated?: boolean;
+  }): Promise<PaginatedResponse<T>> {
+    const {
+      prisma,
+      page = 1,
+      limit = 10,
+      documentoCiudadano,
+      pagoId,
+      activatePaginated = true,
+    } = options;
+
+    const whereClause: any = {
+      documentoCiudadano,
+      deletedAt: null,
+      estatus: { in: ['SOLICITADO', 'APROBADO'] },
+    };
+
+    if (pagoId) {
+      whereClause.pagos = {
+        some: {
+          id: pagoId,
+        },
+      };
+    }
+
+    return await this.paginationService.paginateEntity<T>({
+      prisma,
+      entity: 'permiso',
+      page,
+      limit,
+      include: {
+        sede: true,
+        subsede: true,
+        tipoPermiso: { include: { sede: true, subsede: true } },
+        pagos: {
+          select: {
+            id: true,
+            metodoPago: true,
+            total: true,
+            fechaPago: true,
+            estatus: true,
+            referenciaPago: true,
+            observaciones: true,
+            costoBase: true,
+            descuentoPct: true,
+            descuentoMonto: true,
+            qrComprobante: true,
+            nombreCiudadano: true,
+            documentoCiudadano: true,
+            sede: { select: { id: true, name: true } },
+            subsede: {
+              select: {
+                id: true,
+                name: true,
+                configuracion: { select: { logo: true } },
+              },
+            },
+            usuarioCobro: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+              },
+            },
+            usuarioAutorizo: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                username: true,
+              },
+            },
           },
         },
       },
