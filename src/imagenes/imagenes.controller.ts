@@ -31,7 +31,6 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 
 @ApiTags('Imágenes')
-@ApiBearerAuth()
 @Controller('imagenes')
 export class ImagenesController {
   private readonly logger = new Logger(ImagenesController.name);
@@ -45,6 +44,7 @@ export class ImagenesController {
    * Subir una imagen
    * POST /imagenes/upload/:type?id=1&subId=2
    */
+  @ApiBearerAuth()
   @Post('upload/:type')
   @Permissions([{ resource: 'imagenes', action: 'create' }])
   @UseInterceptors(FileInterceptor('file'))
@@ -116,6 +116,7 @@ export class ImagenesController {
    * Reemplazar una imagen existente
    * PUT /imagenes/replace/:type/:filename?id=1&subId=2
    */
+  @ApiBearerAuth()
   @Post('replace/:type/:filename')
   @Permissions([{ resource: 'imagenes', action: 'update' }])
   @UseInterceptors(FileInterceptor('file'))
@@ -237,6 +238,7 @@ export class ImagenesController {
    * Eliminar una imagen
    * DELETE /imagenes/:type/:filename
    */
+  @ApiBearerAuth()
   @Delete(':type/:filename')
   @Permissions([{ resource: 'imagenes', action: 'delete' }])
   @ApiOperation({ summary: 'Eliminar una imagen' })
@@ -267,6 +269,7 @@ export class ImagenesController {
    * Listar todas las imágenes de un tipo
    * GET /imagenes/list/:type
    */
+  @ApiBearerAuth()
   @Get('list/:type')
   @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Listar todas las imágenes de un tipo' })
@@ -295,6 +298,7 @@ export class ImagenesController {
    * Obtener metadata de una imagen
    * GET /imagenes/metadata/:type/:filename
    */
+  @ApiBearerAuth()
   @Get('metadata/:type/:filename')
   @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener metadata de una imagen' })
@@ -329,6 +333,7 @@ export class ImagenesController {
    * Obtener imágenes de una entidad específica
    * GET /imagenes/entity/:type/:id
    */
+  @ApiBearerAuth()
   @Get('entity/:type/:id')
   @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener todas las imágenes de una entidad' })
@@ -361,6 +366,7 @@ export class ImagenesController {
    * Obtener la imagen más reciente de una entidad
    * GET /imagenes/latest/:type/:id?subId=2
    */
+  @ApiBearerAuth()
   @Get('latest/:type/:id')
   @Permissions([{ resource: 'imagenes', action: 'read' }])
   @ApiOperation({ summary: 'Obtener la imagen más reciente de una entidad' })

@@ -23,7 +23,7 @@ import { CreatePermisoDto } from './dto/create-permiso.dto';
 import { UpdatePermisoDto } from './dto/update-permiso.dto';
 import { FilterPermisoDto } from './dto/filter-permiso.dto';
 import { FindDniPermisoDto } from './dto/find-dni-permiso.dto';
-import { Permiso, PermisoEstatus } from './entities/permiso.entity';
+import { Permiso } from './entities/permiso.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -49,6 +49,16 @@ export class PermisoController {
   @Post()
   create(@Body() createPermisoDto: CreatePermisoDto, @Req() req: Request) {
     return this.permisoService.create(createPermisoDto, req.user);
+  }
+
+  @ApiOperation({ summary: 'Buscar permisos por DNI (paginado)' })
+  @ApiResponse({ status: 200, type: [Permiso] })
+  @Public()
+  @Get('dni')
+  findDNI(
+    @Query() findDniDto: FindDniPermisoDto,
+  ) {
+    return this.finderPermisoService.findDNI(findDniDto);
   }
 
   @ApiOperation({ summary: 'Listar permisos paginados y filtrados' })
@@ -133,25 +143,5 @@ export class PermisoController {
     @Req() req: Request,
   ) {
     return this.permisoService.rechazar(+id, motivoRechazo, req.user);
-  }
-
-  @ApiOperation({ summary: 'Buscar permisos por DNI (paginado)' })
-  @ApiResponse({ status: 200, type: [Permiso] })
-  @ApiParam({ name: 'documentoCiudadano', type: String })
-  @RequirePermissions({ resource: 'permiso', action: 'read' })
-  @Public()
-  @Get('dni/:documentoCiudadano')
-  findDNI(
-    @Param('documentoCiudadano') documentoCiudadano: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('pagoId') pagoId?: number,
-  ) {
-    const findDniDto = new FindDniPermisoDto();
-    findDniDto.documentoCiudadano = documentoCiudadano;
-    findDniDto.page = page;
-    findDniDto.limit = limit;
-    findDniDto.pagoId = pagoId;
-    return this.finderPermisoService.findDNI(findDniDto);
   }
 }

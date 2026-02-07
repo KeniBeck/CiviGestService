@@ -64,7 +64,7 @@ export class FinderPermisoService {
             nombreCiudadano: true,
             documentoCiudadano: true,
             sede: { select: { id: true, name: true } },
-            subsede: { select: { id: true, name: true } },
+            subsede: { select: { id: true, name: true, configuracion: { select: { logo: true } } } },
             usuarioCobro: {
               select: {
                 id: true,
