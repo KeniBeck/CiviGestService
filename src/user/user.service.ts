@@ -710,4 +710,81 @@ export class UserService {
       },
     });
   }
+
+  /**
+   * Cambiar la propia contraseña (requiere la contraseña actual)
+   */
+  async changeOwnPassword(
+    userId: number,
+    oldPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`);
+    }
+
+    // Verificar contraseña actual
+    const match = await bcrypt.compare(oldPassword, user.password);
+    if (!match) {
+      throw new BadRequestException('Contraseña actual inválida');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed },
+    });
+
+    return { message: 'Contraseña actualizada correctamente' };
+  }
+
+  /**
+   * Cambiar la contraseña de otro usuario respetando niveles de acceso
+   * - Super Administrador: puede cambiar cualquier contraseña
+   * - SEDE: puede cambiar usuarios dentro de su sede
+   * - SUBSEDE: puede cambiar usuarios dentro de su subsede
+   */
+  async changePasswordByAdmin(
+    targetUserId: number,
+    updaterId: number,
+    updaterSedeId: number,
+    updaterSubsedeId: number | null,
+    updaterAccessLevel: AccessLevel,
+    updaterRoles: string[],
+    sedeAccessIds: number[],
+    subsedeAccessIds: number[],
+    newPassword: string,
+  ) {
+    const isSuperAdmin = updaterRoles.includes('Super Administrador');
+
+    const existingUser = await this.prisma.user.findFirst({ where: { id: targetUserId, deletedAt: null } });
+    if (!existingUser) {
+      throw new NotFoundException(`Usuario con ID ${targetUserId} no encontrado`);
+    }
+
+    // Validar permisos del que actualiza
+    if (!isSuperAdmin) {
+      if (updaterAccessLevel === AccessLevel.SEDE) {
+        const accessibleSedeIds = [updaterSedeId, ...sedeAccessIds];
+        if (!accessibleSedeIds.includes(existingUser.sedeId)) {
+          throw new ForbiddenException('No tienes acceso para cambiar la contraseña de este usuario');
+        }
+      } else if (updaterAccessLevel === AccessLevel.SUBSEDE) {
+        const accessibleSubsedeIds = [ ...(updaterSubsedeId ? [updaterSubsedeId] : []), ...subsedeAccessIds ];
+        if (!existingUser.subsedeId || !accessibleSubsedeIds.includes(existingUser.subsedeId)) {
+          throw new ForbiddenException('No tienes acceso para cambiar la contraseña de este usuario');
+        }
+      } else {
+        throw new ForbiddenException('No tienes permisos para cambiar contraseñas');
+      }
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({ where: { id: targetUserId }, data: { password: hashed } });
+
+    return { message: 'Contraseña actualizada correctamente' };
+  }
 }
