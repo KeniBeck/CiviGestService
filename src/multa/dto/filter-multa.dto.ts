@@ -8,6 +8,26 @@ import { IsString } from 'class-validator';
  */
 export class FilterMultaDto {
   @ApiPropertyOptional({
+    description: 'Filtrar por ID de sede',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  sedeId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por ID de subsede',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  subsedeId?: number;
+
+  @ApiPropertyOptional({
     description: 'Filtrar por ID de departamento',
     example: 1,
   })

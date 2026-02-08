@@ -87,7 +87,6 @@ export class CreateConfiguracionDto {
     description: 'Salario mínimo vigente',
   })
   @IsNumber()
-  @IsPositive()
   @Type(() => Number)
   salarioMinimo: number;
 
@@ -96,7 +95,6 @@ export class CreateConfiguracionDto {
     description: 'UMA (Unidad de Medida y Actualización) vigente',
   })
   @IsNumber()
-  @IsPositive()
   @Type(() => Number)
   uma: number;
 
