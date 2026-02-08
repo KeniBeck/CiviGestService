@@ -18,6 +18,7 @@ import { UserService } from './user.service';
 import { FinderUserService } from './service/finder-user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { PaginatedUsersQueryDto } from './dto/paginated-users-query.dto';
 import { FilterUsersDto } from './dto/filter-users.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -250,6 +251,51 @@ export class UserController {
       user.roles,
       user.sedeAccessIds,
       user.subsedeAccessIds,
+    );
+  }
+
+  /**
+   * PATCH /users/change-password - Cambiar la propia contraseña
+   */
+  @Patch('change-password')
+  @Permissions([
+    { resource: 'users', action: 'update' },
+  ] as Policy[])
+  @ApiOperation({ summary: 'Cambiar la propia contraseña' })
+  async changeOwnPassword(
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: ChangePasswordDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.changeOwnPassword(
+      user.userId,
+      dto.oldPassword as string,
+      dto.newPassword,
+    );
+  }
+
+  /**
+   * PATCH /users/:id/change-password - Cambiar contraseña de otro usuario (admin)
+   */
+  @Patch(':id/change-password')
+  @Permissions([
+    { resource: 'users', action: 'update' },
+  ] as Policy[])
+  @ApiOperation({ summary: 'Cambiar la contraseña de otro usuario (según permisos)' })
+  async changePassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: ChangePasswordDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.changePasswordByAdmin(
+      id,
+      user.userId,
+      user.sedeId,
+      user.subsedeId,
+      user.accessLevel,
+      user.roles,
+      user.sedeAccessIds,
+      user.subsedeAccessIds,
+      dto.newPassword,
     );
   }
 

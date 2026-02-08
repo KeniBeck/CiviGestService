@@ -159,6 +159,18 @@ export class MultaController {
     description: 'Filtrar por ID de departamento',
   })
   @ApiQuery({
+    name: 'sedeId',
+    required: false,
+    type: Number,
+    description: 'Filtrar por ID de sede (solo para Super Admin)',
+  })
+  @ApiQuery({
+    name: 'subsedeId',
+    required: false,
+    type: Number,
+    description: 'Filtrar por ID de subsede (solo para Super Admin)',
+  })
+  @ApiQuery({
     name: 'isActive',
     required: false,
     type: Boolean,
@@ -179,6 +191,8 @@ export class MultaController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('departamentoId') departamentoId?: number,
+    @Query('sedeId') sedeId?: number,
+    @Query('subsedeId') subsedeId?: number,
     @Query('isActive') isActive?: boolean,
     @Query('search') search?: string,
     @Query('activatePaginated') activatePaginated?: boolean,
@@ -196,6 +210,14 @@ export class MultaController {
 
     if (search && search.trim() !== '') {
       filters.search = search.trim();
+    }
+
+    if (sedeId) {
+      filters.sedeId = sedeId;
+    }
+
+    if (subsedeId) {
+      filters.subsedeId = subsedeId;
     }
 
     // Si activatePaginated es falso, establecerlo en el objeto filters

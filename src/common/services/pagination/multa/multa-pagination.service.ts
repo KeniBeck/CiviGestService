@@ -54,6 +54,15 @@ export class MultaPaginationService {
       }
     }
 
+    // Aplicar filtros de sede y subsede (para Super Admin y reportes)
+    if (filters?.sedeId) {
+      whereClause.sedeId = filters.sedeId;
+    }
+
+    if (filters?.subsedeId) {
+      whereClause.subsedeId = filters.subsedeId;
+    }
+
     // Aplicar filtros
     if (filters?.departamentoId) {
       whereClause.departamentoId = filters.departamentoId;
