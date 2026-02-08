@@ -255,6 +255,51 @@ export class UserController {
   }
 
   /**
+   * PATCH /users/change-password - Cambiar la propia contraseña
+   */
+  @Patch('change-password')
+  @Permissions([
+    { resource: 'users', action: 'update' },
+  ] as Policy[])
+  @ApiOperation({ summary: 'Cambiar la propia contraseña' })
+  async changeOwnPassword(
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: ChangePasswordDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.changeOwnPassword(
+      user.userId,
+      dto.oldPassword as string,
+      dto.newPassword,
+    );
+  }
+
+  /**
+   * PATCH /users/:id/change-password - Cambiar contraseña de otro usuario (admin)
+   */
+  @Patch(':id/change-password')
+  @Permissions([
+    { resource: 'users', action: 'update' },
+  ] as Policy[])
+  @ApiOperation({ summary: 'Cambiar la contraseña de otro usuario (según permisos)' })
+  async changePassword(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: ChangePasswordDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.changePasswordByAdmin(
+      id,
+      user.userId,
+      user.sedeId,
+      user.subsedeId,
+      user.accessLevel,
+      user.roles,
+      user.sedeAccessIds,
+      user.subsedeAccessIds,
+      dto.newPassword,
+    );
+  }
+
+  /**
    * PATCH /users/:id - Actualizar usuario
    * Permisos: Super Admin, SEDE (si usuario pertenece a su sede), SUBSEDE (si usuario pertenece a su subsede)
    */
@@ -303,51 +348,6 @@ export class UserController {
       user.roles,
       user.sedeAccessIds,
       user.subsedeAccessIds,
-    );
-  }
-
-  /**
-   * PATCH /users/change-password - Cambiar la propia contraseña
-   */
-  @Patch('change-password')
-  @Permissions([
-    { resource: 'users', action: 'update' },
-  ] as Policy[])
-  @ApiOperation({ summary: 'Cambiar la propia contraseña' })
-  async changeOwnPassword(
-    @Body() dto: ChangePasswordDto,
-    @CurrentUser() user: RequestUser,
-  ) {
-    return this.userService.changeOwnPassword(
-      user.userId,
-      dto.oldPassword as string,
-      dto.newPassword,
-    );
-  }
-
-  /**
-   * PATCH /users/:id/change-password - Cambiar contraseña de otro usuario (admin)
-   */
-  @Patch(':id/change-password')
-  @Permissions([
-    { resource: 'users', action: 'update' },
-  ] as Policy[])
-  @ApiOperation({ summary: 'Cambiar la contraseña de otro usuario (según permisos)' })
-  async changePassword(
-    @Param('id', ParseIntPipe) id: number,
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: ChangePasswordDto,
-    @CurrentUser() user: RequestUser,
-  ) {
-    return this.userService.changePasswordByAdmin(
-      id,
-      user.userId,
-      user.sedeId,
-      user.subsedeId,
-      user.accessLevel,
-      user.roles,
-      user.sedeAccessIds,
-      user.subsedeAccessIds,
-      dto.newPassword,
     );
   }
 

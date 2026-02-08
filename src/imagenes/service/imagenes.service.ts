@@ -23,7 +23,8 @@ export type ImageType =
   | 'permisos'         // Imágenes de permisos ciudadanos
   | 'usuarios'         // Fotos de perfil de usuarios
   | 'comprobantes'     // Comprobantes de pago
-  | 'documentos';      // Documentos adjuntos generales
+  | 'documentos'      // Documentos adjuntos generales
+  | 'agentes';         // Fotos de perfil de agentes
 
 @Injectable()
 export class ImagenesService {
@@ -44,6 +45,7 @@ export class ImagenesService {
     this.ensureUploadDirectory('usuarios');
     this.ensureUploadDirectory('comprobantes');
     this.ensureUploadDirectory('documentos');
+    this.ensureUploadDirectory('agentes');
   }
 
   /**

@@ -71,6 +71,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiQuery({
@@ -143,6 +144,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({
@@ -205,6 +207,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo' })
@@ -250,6 +253,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo a eliminar' })
@@ -281,6 +285,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   async listImages(@Param('type') type: ImageType) {
@@ -310,6 +315,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({ name: 'filename', description: 'Nombre del archivo' })
@@ -345,6 +351,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({ name: 'id', description: 'ID de la entidad' })
@@ -378,6 +385,7 @@ export class ImagenesController {
       'usuarios',
       'comprobantes',
       'documentos',
+      'agentes',
     ],
   })
   @ApiParam({ name: 'id', description: 'ID de la entidad' })
