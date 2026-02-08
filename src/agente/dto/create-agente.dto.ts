@@ -71,7 +71,7 @@ export class CreateAgenteDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  numPlantilla: string;
+  numPlaca: string;
 
   @ApiPropertyOptional({
     description: 'Número de empleado biométrico',
@@ -101,18 +101,18 @@ export class CreateAgenteDto {
   @MaxLength(20)
   whatsapp?: string;
 
-  @ApiPropertyOptional({
-    description: 'Correo electrónico',
+  @ApiProperty({
+    description: 'Correo electrónico del agente (OBLIGATORIO)',
     example: 'juan.garcia@municipio.gob.mx',
     maxLength: 100,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsEmail()
   @MaxLength(100)
-  correo?: string;
+  correo: string;
 
   @ApiPropertyOptional({
-    description: 'Contraseña del agente',
+    description: 'Contraseña del agente (opcional, si no se proporciona se usará el numPlaca)',
     example: 'Password123!',
     maxLength: 255,
   })

@@ -77,7 +77,7 @@ export class AgentePaginationService {
         { nombres: { contains: searchTerm, mode: 'insensitive' as const } },
         { apellidoPaterno: { contains: searchTerm, mode: 'insensitive' as const } },
         { apellidoMaterno: { contains: searchTerm, mode: 'insensitive' as const } },
-        { numPlantilla: { contains: searchTerm, mode: 'insensitive' as const } },
+        { numPlaca: { contains: searchTerm, mode: 'insensitive' as const } },
       ];
     }
 

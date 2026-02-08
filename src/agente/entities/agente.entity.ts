@@ -5,6 +5,9 @@ import { Agente } from '@prisma/client';
  * Entity para agente con propiedades para Swagger
  */
 export class AgenteEntity implements Agente {
+  passwordResetToken: string | null;
+  passwordResetExpires: Date | null;
+  lastLoginAt: Date | null;
   @ApiProperty()
   id: number;
 
@@ -30,7 +33,7 @@ export class AgenteEntity implements Agente {
   cargo: string;
 
   @ApiProperty()
-  numPlantilla: string;
+  numPlaca: string;
 
   @ApiPropertyOptional()
   numEmpleadoBiometrico: string | null;
@@ -42,10 +45,10 @@ export class AgenteEntity implements Agente {
   whatsapp: string | null;
 
   @ApiPropertyOptional()
-  correo: string | null;
+  correo: string;
 
   @ApiPropertyOptional()
-  contrasena: string | null;
+  contrasena: string;
 
   @ApiPropertyOptional()
   departamentoId: number | null;

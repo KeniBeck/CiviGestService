@@ -47,18 +47,18 @@ export class AgenteService {
       );
     }
 
-    // Verificar que numPlantilla es único en la subsede
+    // Verificar que numPlaca es único en la subsede
     const existingAgente = await this.prisma.agente.findFirst({
       where: {
         subsedeId: userSubsedeId,
-        numPlantilla: createAgenteDto.numPlantilla,
+        numPlaca: createAgenteDto.numPlaca,
         deletedAt: null,
       },
     });
 
     if (existingAgente) {
       throw new ConflictException(
-        `Ya existe un agente con el número de plantilla "${createAgenteDto.numPlantilla}" en este municipio`,
+        `Ya existe un agente con el número de plantilla "${createAgenteDto.numPlaca}" en este municipio`,
       );
     }
 
@@ -97,14 +97,12 @@ export class AgenteService {
       }
     }
 
-    // Hashear contraseña si se proporciona
-    let hashedPassword: string | undefined;
-    if (createAgenteDto.contrasena) {
-      hashedPassword = await bcrypt.hash(createAgenteDto.contrasena, 10);
-    }
+    // ✅ HASHEAR CONTRASEÑA: Si se proporciona, usarla; si no, usar numPlaca
+    const passwordToHash = createAgenteDto.contrasena || createAgenteDto.numPlaca;
+    const hashedPassword = await bcrypt.hash(passwordToHash, 10);
 
     // Crear el agente
-    return this.prisma.agente.create({
+    const agente = await this.prisma.agente.create({
       data: {
         ...createAgenteDto,
         contrasena: hashedPassword,
@@ -136,13 +134,34 @@ export class AgenteService {
             descripcion: true,
           },
         },
-        patrulla:{
-          select:{
-            numPatrulla: true
-          }
-        }
+        patrulla: {
+          select: {
+            numPatrulla: true,
+          },
+        },
       },
     });
+
+    // ✅ ASIGNAR ROL "Agente de Tránsito" automáticamente
+    const rolAgente = await this.prisma.role.findFirst({
+      where: {
+        name: 'Agente de Tránsito',
+        isGlobal: true,
+        isActive: true,
+      },
+    });
+
+    if (rolAgente) {
+      await this.prisma.agenteRol.create({
+        data: {
+          agenteId: agente.id,
+          roleId: rolAgente.id,
+          assignedBy: userId,
+        },
+      });
+    }
+
+    return agente;
   }
 
   /**
@@ -182,15 +201,15 @@ export class AgenteService {
       }
     }
 
-    // Si se cambia numPlantilla, verificar unicidad
+    // Si se cambia numPlaca, verificar unicidad
     if (
-      updateAgenteDto.numPlantilla &&
-      updateAgenteDto.numPlantilla !== agente.numPlantilla
+      updateAgenteDto.numPlaca &&
+      updateAgenteDto.numPlaca !== agente.numPlaca
     ) {
       const existingAgente = await this.prisma.agente.findFirst({
         where: {
           subsedeId: agente.subsedeId,
-          numPlantilla: updateAgenteDto.numPlantilla,
+          numPlaca: updateAgenteDto.numPlaca,
           id: { not: id },
           deletedAt: null,
         },
@@ -198,7 +217,7 @@ export class AgenteService {
 
       if (existingAgente) {
         throw new ConflictException(
-          `Ya existe un agente con el número de plantilla "${updateAgenteDto.numPlantilla}" en este municipio`,
+          `Ya existe un agente con el número de plantilla "${updateAgenteDto.numPlaca}" en este municipio`,
         );
       }
     }
@@ -247,19 +266,25 @@ export class AgenteService {
       // Si patrullaId es null, se permite (desasignar patrulla)
     }
 
-    // Hashear nueva contraseña si se proporciona
-    let hashedPassword: string | undefined;
-    if (updateAgenteDto.contrasena) {
-      hashedPassword = await bcrypt.hash(updateAgenteDto.contrasena, 10);
+    // ✅ Si se actualiza el correo, validar que sea único
+    if (updateAgenteDto.correo && updateAgenteDto.correo !== agente.correo) {
+      const existingAgente = await this.prisma.agente.findUnique({
+        where: { correo: updateAgenteDto.correo },
+      });
+
+      if (existingAgente) {
+        throw new BadRequestException('El correo ya está en uso');
+      }
     }
+
+    // ✅ NO permitir actualizar contraseña desde este endpoint
+    // La contraseña solo se cambia desde /agentes/auth/change-password
+    const { contrasena, ...safeUpdateDto } = updateAgenteDto as any;
 
     // Actualizar agente
     return this.prisma.agente.update({
       where: { id },
-      data: {
-        ...updateAgenteDto,
-        ...(hashedPassword && { contrasena: hashedPassword }),
-      },
+      data: safeUpdateDto,
       include: {
         sede: {
           select: {

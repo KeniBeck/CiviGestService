@@ -39,6 +39,11 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
+    // ✅ Validación especial para agentes: solo pueden acceder a su propia subsede
+    if (user.isAgente) {
+      this.validateAgenteSubsedeAccess(request, user);
+    }
+
     // Asegurar que los permisos existen en DB (los crea si no existen)
     await this.ensurePermissionsExist(requiredPolicies);
 
@@ -62,6 +67,32 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Valida que un agente solo pueda acceder a recursos de su propia subsede
+   * @param request - Request HTTP
+   * @param user - Usuario autenticado (agente)
+   */
+  private validateAgenteSubsedeAccess(request: any, user: RequestUser): void {
+    // Extraer subsedeId del request (puede estar en params, query o body)
+    const subsedeId = 
+      request.params?.subsedeId || 
+      request.query?.subsedeId || 
+      request.body?.subsedeId;
+
+    // Si hay un subsedeId en el request, validar que coincida con el del agente
+    if (subsedeId !== undefined && subsedeId !== null) {
+      const requestedSubsedeId = typeof subsedeId === 'string' 
+        ? parseInt(subsedeId, 10) 
+        : subsedeId;
+
+      if (requestedSubsedeId !== user.subsedeId) {
+        throw new ForbiddenException(
+          'Los agentes solo pueden acceder a recursos de su propia subsede',
+        );
+      }
+    }
   }
 
   /**

@@ -101,7 +101,7 @@ export class PatrullaPaginationService {
             nombres: true,
             apellidoPaterno: true,
             apellidoMaterno: true,
-            numPlantilla: true,
+            numPlaca: true,
             tipo: {
               select: {
                 id: true,

@@ -553,12 +553,22 @@ model Agente {
   apellidoMaterno       String  @db.VarChar(100)
   tipoId                Int
   cargo                 String  @db.VarChar(100)
-  numPlantilla          String  @db.VarChar(50)
+  numPlaca              String  @db.VarChar(50) // Se usa como username para login
   numEmpleadoBiometrico String? @db.VarChar(50)
   foto                  String? @db.Text
   whatsapp              String? @db.VarChar(20)
-  correo                String? @db.VarChar(100)
-  contrasena            String? @db.VarChar(255)
+  
+  // ✅ CAMBIO: Correo ahora OBLIGATORIO y único
+  correo                String  @unique @db.VarChar(100)
+  
+  // ✅ CAMBIO: Campo contraseña obligatorio (hash bcrypt)
+  contrasena            String  @db.VarChar(255)
+  
+  // ✅ NUEVO: Campos de seguridad para autenticación
+  lastLoginAt          DateTime?
+  passwordResetToken   String?   @unique @db.VarChar(255)
+  passwordResetExpires DateTime?
+  
   departamentoId        Int?
   patrullaId            Int? // FK - Un agente está asignado a UNA patrulla
 
@@ -575,16 +585,44 @@ model Agente {
   tipo         TipoAgente    @relation(fields: [tipoId], references: [id])
   departamento Departamento? @relation(fields: [departamentoId], references: [id])
   patrulla     Patrulla?     @relation(fields: [patrullaId], references: [id]) // Agente PERTENECE a una patrulla
+  
+  // ✅ NUEVO: Relación con roles
+  roles        AgenteRol[]
 
-  @@unique([subsedeId, numPlantilla])
+  @@unique([subsedeId, numPlaca])
   @@index([sedeId])
   @@index([subsedeId])
   @@index([tipoId])
   @@index([departamentoId])
-  @@index([patrullaId]) // Agregar índice
+  @@index([patrullaId])
+  @@index([correo]) // ✅ NUEVO índice
   @@index([isActive])
   @@index([deletedAt])
   @@map("agentes")
+}
+
+// ============================================
+// RELACIÓN AGENTES - ROLES
+// ============================================
+
+model AgenteRol {
+  id       Int @id @default(autoincrement())
+  agenteId Int
+  roleId   Int
+  
+  // Relaciones
+  agente Agente @relation(fields: [agenteId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  // Auditoría
+  assignedAt DateTime @default(now())
+  assignedBy Int      // ID del usuario admin que asignó el rol
+  isActive   Boolean  @default(true)
+  
+  @@unique([agenteId, roleId])
+  @@index([agenteId])
+  @@index([roleId])
+  @@map("agente_roles")
 }
 
 // ============================================
@@ -667,6 +705,7 @@ model Role {
   subsede     Subsede?         @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
   userRoles   UserRole[]
   permissions RolePermission[]
+  agenteRoles AgenteRol[] // ✅ NUEVO: Relación con agentes
 
   @@unique([name, sedeId, subsedeId]) // Nombre único por scope
   @@index([isActive])

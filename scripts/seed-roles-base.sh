@@ -289,6 +289,73 @@ BEGIN
     
     RAISE NOTICE '   📊 Total de permisos: % (solo lectura)', v_permisos_count;
     RAISE NOTICE '';
+
+    -- ============================================
+    -- 5. ROL: AGENTE DE TRÁNSITO
+    -- ============================================
+    RAISE NOTICE '🔧 Procesando: Agente de Tránsito';
+
+    -- Verificar si ya existe (roles globales tienen sedeId y subsedeId NULL)
+    SELECT id INTO v_role_id
+    FROM roles
+    WHERE name = 'Agente de Tránsito'
+      AND "sedeId" IS NULL
+      AND "subsedeId" IS NULL
+      AND "isGlobal" = true;
+
+    IF v_role_id IS NULL THEN
+        INSERT INTO roles (name, description, level, "isActive", "isGlobal", "sedeId", "subsedeId", "createdAt", "updatedAt")
+        VALUES (
+            'Agente de Tránsito',
+            'Agente autorizado para generar infracciones de tránsito',
+            'OPERATIVO',
+            true,
+            true,
+            NULL,
+            NULL,
+            NOW(),
+            NOW()
+        )
+        RETURNING id INTO v_role_id;
+
+        v_roles_creados := v_roles_creados + 1;
+        RAISE NOTICE '   ✅ Rol creado (ID: %)', v_role_id;
+    ELSE
+        UPDATE roles SET
+            description = 'Agente autorizado para generar infracciones de tránsito',
+            level = 'OPERATIVO',
+            "updatedAt" = NOW()
+        WHERE id = v_role_id;
+
+        v_roles_actualizados := v_roles_actualizados + 1;
+        RAISE NOTICE '   ✓ Rol ya existe (ID: %)', v_role_id;
+    END IF;
+
+    -- Asegurar permisos específicos existen: infraccion:create y infraccion:read
+    IF NOT EXISTS (SELECT 1 FROM permissions p WHERE p.resource = 'infraccion' AND p.action = 'create') THEN
+        INSERT INTO permissions (resource, action, description, level, "isActive", "createdAt", "updatedAt")
+        VALUES ('infraccion', 'create', 'Crear infracciones en campo', 'OPERATIVO', true, NOW(), NOW());
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM permissions p WHERE p.resource = 'infraccion' AND p.action = 'read') THEN
+        INSERT INTO permissions (resource, action, description, level, "isActive", "createdAt", "updatedAt")
+        VALUES ('infraccion', 'read', 'Ver infracciones propias', 'OPERATIVO', true, NOW(), NOW());
+    END IF;
+
+    -- Asignar los permisos de infracciones al rol de agente
+    INSERT INTO role_permissions ("roleId", "permissionId", "grantedAt", "grantedBy")
+    SELECT v_role_id, p.id, NOW(), 1
+    FROM permissions p
+    WHERE p.resource = 'infraccion'
+      AND p.action IN ('create', 'read')
+    ON CONFLICT ("roleId", "permissionId") DO NOTHING;
+
+    SELECT COUNT(*) INTO v_permisos_count
+    FROM role_permissions
+    WHERE "roleId" = v_role_id;
+
+    RAISE NOTICE '   📊 Permisos asignados a Agente de Tránsito: %', v_permisos_count;
+    RAISE NOTICE '';
     
     -- ============================================
     -- RESUMEN FINAL

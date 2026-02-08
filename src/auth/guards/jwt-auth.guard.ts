@@ -17,7 +17,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(private reflector: Reflector) {
     super();
   }
-
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
@@ -31,10 +30,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
 
+    console.log('JwtAuthGuard: Validando autenticación de usuario');
+
     // Si no es pública, validar JWT
     return super.canActivate(context);
   }
-
   handleRequest(err: any, user: any, info: any) {
     // Si hay un error o no hay usuario, lanzar excepción
     if (err || !user) {
