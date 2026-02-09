@@ -24,6 +24,8 @@ import { UpdateConfiguracionDto } from './dto/update-configuracion.dto';
 import { FilterConfiguracionDto } from './dto/filter-configuracion.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { JwtHybridAuthGuard } from '../auth/guards/jwt-hybrid-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import type { Policy } from '../auth/decorators/permissions.decorator';
@@ -36,9 +38,7 @@ import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
  * Multi-tenancy: Una configuración por subsede (relación 1:1)
  */
 @ApiTags('Configuraciones')
-@ApiBearerAuth()
 @Controller('configuraciones')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ConfiguracionController {
   constructor(
     private readonly configuracionService: ConfiguracionService,
@@ -49,6 +49,8 @@ export class ConfiguracionController {
    * POST /configuraciones - Crear nueva configuración
    */
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'create' }] as Policy[])
   @ApiOperation({ summary: 'Crear una nueva configuración' })
   @ApiResponse({
@@ -77,6 +79,8 @@ export class ConfiguracionController {
    * GET /configuraciones - Listar configuraciones
    */
   @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'read' }] as Policy[])
   @ApiOperation({ summary: 'Obtener todas las configuraciones' })
   @ApiQuery({
@@ -119,6 +123,8 @@ export class ConfiguracionController {
    * GET /configuraciones/paginated - Listar configuraciones paginadas
    */
   @Get('paginated')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'read' }] as Policy[])
   @ApiOperation({ summary: 'Obtener configuraciones paginadas' })
   @ApiQuery({
@@ -179,6 +185,8 @@ export class ConfiguracionController {
    * GET /configuraciones/:id - Obtener una configuración por ID
    */
   @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'read' }] as Policy[])
   @ApiOperation({ summary: 'Obtener una configuración por ID' })
   @ApiResponse({
@@ -205,9 +213,12 @@ export class ConfiguracionController {
 
   /**
    * GET /configuraciones/subsede/:subsedeId - Obtener configuración por subsede
+   * Este endpoint acepta tanto tokens de usuarios como de agentes
    */
   @Get('subsede/:subsedeId')
-  @Permissions([{ resource: 'configuraciones', action: 'read' }] as Policy[])
+  @Public()
+  @ApiBearerAuth()
+  @UseGuards(JwtHybridAuthGuard, PermissionsGuard)
   @ApiOperation({ summary: 'Obtener configuración por subsedeId' })
   @ApiResponse({
     status: 200,
@@ -235,6 +246,8 @@ export class ConfiguracionController {
    * PATCH /configuraciones/:id - Actualizar una configuración
    */
   @Patch(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'update' }] as Policy[])
   @ApiOperation({ summary: 'Actualizar una configuración' })
   @ApiResponse({
@@ -266,6 +279,8 @@ export class ConfiguracionController {
    * DELETE /configuraciones/:id - Eliminar una configuración (soft delete)
    */
   @Delete(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions([{ resource: 'configuraciones', action: 'delete' }] as Policy[])
   @ApiOperation({ summary: 'Eliminar una configuración (soft delete)' })
   @ApiResponse({

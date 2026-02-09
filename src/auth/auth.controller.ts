@@ -20,6 +20,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtHybridAuthGuard } from './guards/jwt-hybrid-auth.guard';
 import { RequestUser } from './interfaces/jwt-payload.interface';
 
 @ApiTags('Authentication')
@@ -100,12 +101,13 @@ export class AuthController {
   }
 
   /**
-   * Validar token JWT
+   * Validar token JWT (usuarios y agentes)
    */
   @Get('validate')
-  @UseGuards(JwtAuthGuard)
+  @Public() // Bypassea el guard global
+  @UseGuards(JwtHybridAuthGuard) // Acepta tokens de usuarios y agentes
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Validar token JWT' })
+  @ApiOperation({ summary: 'Validar token JWT (usuarios y agentes)' })
   @ApiResponse({
     status: 200,
     description: 'Token válido',
@@ -121,6 +123,7 @@ export class AuthController {
         id: user.userId,
         email: user.email,
         username: user.username,
+        isAgente: user.isAgente || false,
       },
     };
   }

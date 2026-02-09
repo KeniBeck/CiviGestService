@@ -108,7 +108,7 @@ export class FinderPatrullaService {
             nombres: true,
             apellidoPaterno: true,
             apellidoMaterno: true,
-            numPlantilla: true,
+            numPlaca: true,
             tipo: {
               select: {
                 id: true,
@@ -201,7 +201,7 @@ export class FinderPatrullaService {
             nombres: true,
             apellidoPaterno: true,
             apellidoMaterno: true,
-            numPlantilla: true,
+            numPlaca: true,
             cargo: true,
             tipo: {
               select: {

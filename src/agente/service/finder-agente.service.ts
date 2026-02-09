@@ -60,7 +60,7 @@ export class FinderAgenteService {
       whereClause.isActive = filters.isActive;
     }
 
-    // Filtro search (busca en nombres, apellidos, numPlantilla, correo)
+    // Filtro search (busca en nombres, apellidos, numPlaca, correo)
     if (filters.search && filters.search.trim() !== '') {
       const searchTerm = filters.search.trim();
       whereClause.OR = [
@@ -83,7 +83,7 @@ export class FinderAgenteService {
           },
         },
         {
-          numPlantilla: {
+          numPlaca: {
             contains: searchTerm,
             mode: 'insensitive' as const,
           },
