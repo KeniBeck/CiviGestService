@@ -21,7 +21,6 @@ export class JwtHybridAuthGuard extends AuthGuard(['jwt', 'jwt-agente']) {
   canActivate(context: ExecutionContext) {
     // Este guard SIEMPRE valida el token (usuarios o agentes)
     // El decorador @Public() solo debe afectar al guard global, NO a este
-    console.log('JwtHybridAuthGuard: Validando autenticación híbrida (usuarios o agentes)');
     return super.canActivate(context);
   }
 
@@ -41,8 +40,13 @@ export class JwtHybridAuthGuard extends AuthGuard(['jwt', 'jwt-agente']) {
     if (info?.name === 'NotBeforeError') {
       throw new UnauthorizedException('Token aún no es válido');
     }
-    
+
     // Si llegamos aquí, ninguna estrategia validó exitosamente
-    throw err || new UnauthorizedException('No autorizado - Token inválido o no proporcionado');
+    throw (
+      err ||
+      new UnauthorizedException(
+        'No autorizado - Token inválido o no proporcionado',
+      )
+    );
   }
 }

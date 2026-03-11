@@ -91,19 +91,21 @@ model Sede {
   createdBy Int?
 
   // Relaciones
-  subsedes        Subsede[]
-  users           User[]
-  userSedeAccess  UserSedeAccess[]
-  multas          Multa[]
-  departamentos   Departamento[]
-  agentes         Agente[]
-  patrullas       Patrulla[]
-  tiposAgentes    TipoAgente[]
-  configuraciones Configuracion[]
-  tipoPermisos    TipoPermiso[]
-  permisos        Permiso[]
-  pagosPermisos   PagoPermiso[]
-  roles           Role[]
+  subsedes          Subsede[]
+  users             User[]
+  userSedeAccess    UserSedeAccess[]
+  multas            Multa[]
+  departamentos     Departamento[]
+  agentes           Agente[]
+  patrullas         Patrulla[]
+  tiposAgentes      TipoAgente[]
+  configuraciones   Configuracion[]
+  tipoPermisos      TipoPermiso[]
+  permisos          Permiso[]
+  pagosPermisos     PagoPermiso[]
+  pagosInfracciones PagoInfraccion[]
+  infracciones      Infraccion[]
+  roles             Role[]
 
   @@index([code])
   @@index([isActive])
@@ -138,6 +140,8 @@ model Subsede {
   tipoPermisos      TipoPermiso[]
   permisos          Permiso[]
   pagosPermisos     PagoPermiso[]
+  pagosInfracciones PagoInfraccion[]
+  infracciones      Infraccion[]
   roles             Role[]
 
   @@unique([sedeId, code])
@@ -296,6 +300,10 @@ model User {
   pagosRealizados  PagoPermiso[] @relation("PagosRealizados")
   pagosAutorizados PagoPermiso[] @relation("PagosAutorizados")
 
+  // Pagos de infracciones
+  pagosInfraccionesRealizados  PagoInfraccion[] @relation("PagosInfraccionesRealizados")
+  pagosInfraccionesAutorizados PagoInfraccion[] @relation("PagosInfraccionesAutorizados")
+
   @@index([sedeId])
   @@index([subsedeId])
   @@index([email])
@@ -338,6 +346,8 @@ model Multa {
   subsede        Subsede       @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
   departamento   Departamento? @relation(fields: [departamentoId], references: [id])
   departamentoId Int?
+  pagosInfracciones PagoInfraccion[] // Pagos de esta multa
+  infracciones      Infraccion[]     // Infracciones levantadas de este tipo
 
   @@unique([subsedeId, codigo]) // Código único por municipio
   @@index([sedeId])
@@ -588,6 +598,9 @@ model Agente {
   
   // ✅ NUEVO: Relación con roles
   roles        AgenteRol[]
+  
+  // Relación con infracciones levantadas
+  infracciones Infraccion[] // Infracciones levantadas por este agente
 
   @@unique([subsedeId, numPlaca])
   @@index([sedeId])
@@ -898,4 +911,202 @@ enum EstatusPago {
   REEMBOLSADO // Pago que fue reembolsado
 
   @@map("estatus_pago")
+}
+
+// ============================================
+// MÓDULO DE INFRACCIONES (LEVANTAMIENTO)
+// ============================================
+
+model Infraccion {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio donde se levantó
+
+  // Relación con el catálogo de multas
+  multaId Int // FK a Multa (tipo de infracción)
+
+  // Folio único de la infracción
+  folio String @unique @db.VarChar(100) // Folio único del levantamiento
+
+  // Datos del infractor (ciudadano)
+  nombreCiudadano    String  @db.VarChar(200)
+  documentoCiudadano String  @db.VarChar(50) // CURP, RFC, INE, etc.
+  domicilioCiudadano String? @db.VarChar(255)
+  telefonoCiudadano  String? @db.VarChar(20)
+  emailCiudadano     String? @db.VarChar(100)
+
+  // Detalles de la infracción
+  descripcion String? @db.Text // Descripción detallada de los hechos
+  ubicacion   String? @db.VarChar(255) // Dirección donde ocurrió
+
+  // Coordenadas GPS (opcional)
+  latitud  Decimal? @db.Decimal(10, 8)
+  longitud Decimal? @db.Decimal(11, 8)
+
+  // Fechas
+  fechaInfraccion DateTime // Fecha y hora en que ocurrió la infracción
+  fechaLevantamiento DateTime @default(now()) // Fecha en que se levantó el acta
+
+  // Agente que levantó la infracción (opcional)
+  agenteId Int? // FK a Agente
+
+  // Costos (copiados del catálogo de multas al momento del levantamiento)
+  costoBase   Decimal? @db.Decimal(10, 2)
+  numUMAs     Decimal? @db.Decimal(10, 2)
+  numSalarios Decimal? @db.Decimal(10, 2)
+
+  // Estado de la infracción
+  estatus InfraccionEstatus @default(LEVANTADA)
+
+  // Evidencias (array de URLs o paths)
+  evidencias Json? // [{ "tipo": "foto", "url": "...", "descripcion": "..." }]
+
+  // Observaciones adicionales
+  observaciones String? @db.Text
+
+  // Código QR del comprobante de infracción
+  qr String? @db.Text
+
+  // Fecha límite de pago (calculada según reglamento)
+  fechaLimitePago DateTime?
+
+  // Auditoría completa
+  isActive  Boolean   @default(true)
+  deletedAt DateTime? // Soft delete
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int? // Usuario que creó el registro
+  updatedBy Int? // Usuario que actualizó el registro
+  deletedBy Int? // Usuario que eliminó el registro
+
+  // Relaciones
+  sede   Sede    @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede Subsede @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  multa   Multa   @relation(fields: [multaId], references: [id], onDelete: Restrict)
+  agente  Agente? @relation(fields: [agenteId], references: [id], onDelete: SetNull)
+  pagos   PagoInfraccion[] // Pagos de esta infracción
+
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([multaId])
+  @@index([agenteId])
+  @@index([folio])
+  @@index([documentoCiudadano])
+  @@index([estatus])
+  @@index([fechaInfraccion])
+  @@index([fechaLimitePago])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("infracciones")
+}
+
+// Estados de la infracción
+enum InfraccionEstatus {
+  LEVANTADA // Recién levantada, pendiente de pago
+  PAGADA // Ya fue pagada
+  CANCELADA // Cancelada por autoridad
+  PRESCRITA // Prescrita por tiempo
+  EN_PROCESO // En proceso de revisión
+
+  @@map("infraccion_estatus")
+}
+
+// ============================================
+// MÓDULO DE PAGOS DE INFRACCIONES (MULTAS)
+// ============================================
+
+model PagoInfraccion {
+  id        Int @id @default(autoincrement())
+  sedeId    Int // Multi-tenant: Estado
+  subsedeId Int // Municipio donde se realiza el pago
+
+  // Relación con la multa (catálogo de infracciones)
+  multaId Int // FK a Multa (catálogo)
+
+  // Relación con la infracción levantada (opcional)
+  infraccionId Int? // FK a Infraccion
+
+  // Información del infractor (ciudadano)
+  nombreCiudadano    String @db.VarChar(200)
+  documentoCiudadano String @db.VarChar(50)
+
+  // Folio único de la infracción
+  folioInfraccion String @db.VarChar(100) // Folio único del levantamiento
+
+  // Costos y cálculos
+  costoBase      Decimal @db.Decimal(10, 2) // Costo original de la multa
+  descuentoPct   Decimal @default(0) @db.Decimal(5, 2) // Porcentaje de descuento (0-100)
+  descuentoMonto Decimal @default(0) @db.Decimal(10, 2) // Monto del descuento en pesos
+  total          Decimal @db.Decimal(10, 2) // Total a pagar (costoBase - descuentoMonto)
+
+  // Método de pago
+  metodoPago MetodoPago @default(EFECTIVO)
+
+  // Referencia de pago (para transferencias/tarjetas)
+  referenciaPago String? @db.VarChar(100)
+
+  // Autorización del descuento
+  autorizaDescuento Boolean @default(false)
+  autorizadoPor     Int? // FK a User (quien autorizó el descuento)
+  firmaAutorizacion String? @db.Text // Firma digital o sello
+
+  // Usuario que registró el pago (cajero/operador)
+  usuarioCobroId Int // FK a User
+
+  // Fechas
+  fechaPago DateTime @default(now()) // Fecha en que se realizó el pago
+
+  // Estado del pago
+  estatus EstatusPago @default(PAGADO)
+
+  // Notas adicionales
+  observaciones String? @db.Text
+
+  // Comprobante de pago
+  qrComprobante String? @db.Text // QR code del comprobante
+
+  // Enlaces públicos temporales para compartir comprobante
+  tokenPublico  String?   @unique @db.VarChar(255) // Token único para enlace público
+  tokenExpiraEn DateTime? // Fecha de expiración del token
+
+  // REEMBOLSOS: Si este pago es un reembolso, referencia al pago original
+  pagoOriginalId Int? // FK a PagoInfraccion (self-relation)
+  esReembolso    Boolean @default(false) // Flag para identificar reembolsos
+
+  // Auditoría completa
+  isActive  Boolean   @default(true)
+  deletedAt DateTime? // Soft delete
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int? // Usuario que creó el registro
+  updatedBy Int? // Usuario que actualizó el registro
+  deletedBy Int? // Usuario que eliminó el registro
+
+  // Relaciones
+  sede            Sede              @relation(fields: [sedeId], references: [id], onDelete: Cascade)
+  subsede         Subsede           @relation(fields: [subsedeId], references: [id], onDelete: Cascade)
+  multa           Multa             @relation(fields: [multaId], references: [id], onDelete: Restrict)
+  infraccion      Infraccion?       @relation(fields: [infraccionId], references: [id], onDelete: SetNull)
+  usuarioCobro    User              @relation("PagosInfraccionesRealizados", fields: [usuarioCobroId], references: [id])
+  usuarioAutorizo User?             @relation("PagosInfraccionesAutorizados", fields: [autorizadoPor], references: [id])
+  pagoOriginal    PagoInfraccion?   @relation("ReembolsoPagoInfraccion", fields: [pagoOriginalId], references: [id], onDelete: SetNull)
+  reembolsos      PagoInfraccion[]  @relation("ReembolsoPagoInfraccion") // Pagos que reembolsan este pago
+
+  @@index([sedeId])
+  @@index([subsedeId])
+  @@index([multaId])
+  @@index([infraccionId])
+  @@index([usuarioCobroId])
+  @@index([autorizadoPor])
+  @@index([fechaPago])
+  @@index([estatus])
+  @@index([esReembolso])
+  @@index([pagoOriginalId])
+  @@index([tokenPublico])
+  @@index([tokenExpiraEn])
+  @@index([folioInfraccion])
+  @@index([documentoCiudadano])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("pagos_infracciones")
 }

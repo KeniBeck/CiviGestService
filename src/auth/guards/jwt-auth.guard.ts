@@ -30,8 +30,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
 
-    console.log('JwtAuthGuard: Validando autenticación de usuario');
-
     // Si no es pública, validar JWT
     return super.canActivate(context);
   }
