@@ -18,6 +18,7 @@ import { PermisoModule } from './permiso/permiso.module';
 import { PagosPermisosModule } from './pagos-permisos/pagos-permisos.module';
 import { PagosInfraccionesModule } from './pagos-infracciones/pagos-infracciones.module';
 import { InfraccionesModule } from './infracciones/infracciones.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
 import { ImagenesModule } from './imagenes/imagenes.module';
@@ -50,6 +51,7 @@ import { DocumentosModule } from './documentos/documentos.module';
     PagosPermisosModule,
     PagosInfraccionesModule,
     InfraccionesModule,
+    DashboardModule,
     RoleModule,
     PermissionModule,
     ImagenesModule,
