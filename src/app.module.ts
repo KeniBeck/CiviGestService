@@ -16,6 +16,8 @@ import { ThemeModule } from './theme/theme.module';
 import { TipoPermisoModule } from './tipo-permiso/tipo-permiso.module';
 import { PermisoModule } from './permiso/permiso.module';
 import { PagosPermisosModule } from './pagos-permisos/pagos-permisos.module';
+import { PagosInfraccionesModule } from './pagos-infracciones/pagos-infracciones.module';
+import { InfraccionesModule } from './infracciones/infracciones.module';
 import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
 import { ImagenesModule } from './imagenes/imagenes.module';
@@ -46,6 +48,8 @@ import { DocumentosModule } from './documentos/documentos.module';
     TipoPermisoModule,
     PermisoModule,
     PagosPermisosModule,
+    PagosInfraccionesModule,
+    InfraccionesModule,
     RoleModule,
     PermissionModule,
     ImagenesModule,
